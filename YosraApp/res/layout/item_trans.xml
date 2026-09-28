@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/card"
+    android:elevation="3dp"
+    android:layout_marginBottom="10dp"
+    android:gravity="center_vertical"
+    android:padding="14dp">
+
+    <TextView
+        android:id="@+id/it_avatar"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
+        android:gravity="center"
+        android:text="🚕"
+        android:textSize="17sp"/>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="12dp"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/it_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="سوخت ⛽"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="@color/textDark"
+            android:maxLines="1"
+            android:ellipsize="end"/>
+        <TextView
+            android:id="@+id/it_sub"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="حیدر • امروز"
+            android:textSize="12sp"
+            android:textColor="@color/textGray"
+            android:maxLines="1"
+            android:ellipsize="end"/>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/it_amount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:text="− ۹۰٬۰۰۰"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:textColor="@color/red"/>
+</LinearLayout>

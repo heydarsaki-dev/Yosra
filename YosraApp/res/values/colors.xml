@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#F6F7FC</color>
+    <color name="purple">#6C5CE7</color>
+    <color name="purpleDark">#5246D6</color>
+    <color name="purpleSoft">#EFEDFF</color>
+    <color name="green">#059669</color>
+    <color name="greenSoft">#D5F2E5</color>
+    <color name="red">#E11D48</color>
+    <color name="redSoft">#FCDBE3</color>
+    <color name="gold">#F59E0B</color>
+    <color name="textDark">#1A1B2E</color>
+    <color name="textGray">#6B7194</color>
+    <color name="track">#EEF0F8</color>
+    <color name="white">#FFFFFF</color>
+</resources>

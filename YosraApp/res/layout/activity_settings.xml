@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:paddingBottom="72dp"
+        android:scrollbars="none"
+        android:overScrollMode="never">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:paddingTop="30dp"
+                android:paddingBottom="12dp">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="تنظیمات"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/textDark"/>
+                <TextView
+                    android:id="@+id/btn_add_member"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/btn_soft"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:paddingTop="9dp"
+                    android:paddingBottom="9dp"
+                    android:gravity="center"
+                    android:text="＋ کاربر جدید"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/purple"/>
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginBottom="8dp"
+                android:text="کاربران خانواده 👨🏻‍👩🏻‍👧🏻"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@color/textDark"/>
+
+            <LinearLayout
+                android:id="@+id/member_box"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:paddingTop="20dp"
+                android:paddingBottom="8dp">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="دسته‌بندی‌ها 🏷"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/textDark"/>
+                <TextView
+                    android:id="@+id/btn_add_cat"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/btn_soft"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:paddingTop="9dp"
+                    android:paddingBottom="9dp"
+                    android:gravity="center"
+                    android:text="＋ دسته جدید"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/purple"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:paddingBottom="8dp">
+                <TextView
+                    android:id="@+id/btn_cats_in"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/chip_on"
+                    android:paddingStart="18dp"
+                    android:paddingEnd="18dp"
+                    android:paddingTop="7dp"
+                    android:paddingBottom="7dp"
+                    android:text="درآمد 💰"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/green"/>
+                <TextView
+                    android:id="@+id/btn_cats_out"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/chip"
+                    android:paddingStart="18dp"
+                    android:paddingEnd="18dp"
+                    android:paddingTop="7dp"
+                    android:paddingBottom="7dp"
+                    android:text="خرج 🧾"
+                    android:textSize="13sp"
+                    android:textColor="@color/textGray"/>
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="4dp"
+                android:text="💡 برای تغییر ترتیب، دسته را نگه دار و بکش ↔️"
+                android:textSize="11sp"
+                android:textColor="@color/textGray"/>
+
+            <LinearLayout
+                android:id="@+id/cat_box"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="8dp"
+                android:text="پشتیبان‌گیری 💾"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@color/textDark"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp">
+                <TextView
+                    android:id="@+id/btn_backup"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:background="@drawable/btn_soft"
+                    android:padding="12dp"
+                    android:text="💾 گرفتن بکاپ"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/purple"/>
+                <TextView
+                    android:id="@+id/btn_restore"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:gravity="center"
+                    android:background="@drawable/btn_soft"
+                    android:padding="12dp"
+                    android:text="♻️ بازیابی"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/purple"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_margin="16dp"
+                android:background="@drawable/card"
+                android:elevation="5dp"
+                android:padding="20dp"
+                android:gravity="center">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🌸 یسرا 🌸"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/purple"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="نسخه ۱.۰.۰"
+                    android:textSize="12sp"
+                    android:textColor="@color/textGray"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:gravity="center"
+                    android:lineSpacingExtra="5dp"
+                    android:text="مدیریت خرج و درآمد حیدر و اسماء\nساخته‌شده با ❤️ برای یسرا جان"
+                    android:textSize="13sp"
+                    android:textColor="@color/textDark"/>
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <include
+        android:id="@+id/nav"
+        layout="@layout/nav_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"/>
+</FrameLayout>
