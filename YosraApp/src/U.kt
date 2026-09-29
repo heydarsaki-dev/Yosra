@@ -119,6 +119,15 @@ object U {
         return "${fa(p[2].toString())} ${monthName(p[1])} ${fa(p[0].toString())}"
     }
 
+    /** ساعت و دقیقه به شمسی — مثلاً ۲۱:۰۵ */
+    fun clock(ts: Long): String {
+        val c = java.util.Calendar.getInstance()
+        c.timeInMillis = ts
+        val h = c.get(java.util.Calendar.HOUR_OF_DAY)
+        val m = c.get(java.util.Calendar.MINUTE)
+        return "${fa(h.toString())}:${fa(m.toString().padStart(2, '0'))}"
+    }
+
     fun inMonth(ts: Long): Boolean {
         val j = jParts(ts)
         val t = jParts(System.currentTimeMillis())
@@ -177,6 +186,19 @@ object U {
 
     var fReg: Typeface? = null
     var fBold: Typeface? = null
+
+    /** اطلاعات کامل یک تراکنش برای نمایش مرتب */
+    fun transInfo(t: Db.Trans, cats: Map<Long, Db.Category>, mem: Map<Long, Db.Member>): String {
+        val cat = cats[t.catId]
+        val sb = StringBuilder()
+        sb.append(cat?.let { "${it.emoji} ${it.name}" } ?: "سایر 💼")
+        sb.append("\n")
+        sb.append(if (t.type == 1) "درآمد + " else "خرج − ")
+        sb.append(money(t.amount)).append(" تومان")
+        sb.append("\n").append(nice(t.ts)).append(" • ").append(clock(t.ts))
+        if (t.note.isNotBlank()) sb.append("\n📝 ").append(t.note)
+        return sb.toString()
+    }
 
     fun loadFont(c: Context) {
         if (fReg == null) fReg = try { Typeface.createFromAsset(c.assets, "Vazirmatn-Regular.ttf") } catch (e: Exception) { null }

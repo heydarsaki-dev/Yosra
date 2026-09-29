@@ -8,10 +8,23 @@ import android.widget.TextView
 
 class HomeActivity : android.app.Activity() {
 
+    private var homeRows = mutableListOf<Db.Trans>()
+    private lateinit var homeDrag: RowDrag
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Db.init(this)
         setContentView(R.layout.activity_home)
+
+        val hbox = findViewById<LinearLayout>(R.id.latest_box)
+        homeDrag = RowDrag(hbox) { from, to ->
+            if (from in homeRows.indices && to != from) {
+                val moved = homeRows.removeAt(from)
+                homeRows.add(to.coerceIn(0, homeRows.size), moved)
+                Db.reorderTrans(homeRows.map { it.id })
+                render()
+            }
+        }
 
         findViewById<View>(R.id.btn_settings).setOnClickListener {
             go(SettingsActivity::class.java)
@@ -50,12 +63,6 @@ class HomeActivity : android.app.Activity() {
         val members = Db.members()
         val first = members.firstOrNull()
 
-        val gav = findViewById<TextView>(R.id.home_avatar)
-        gav.text = first?.emoji ?: "ی"
-        val g = GradientDrawable()
-        g.shape = GradientDrawable.OVAL
-        g.setColor(0x33FFFFFF.toInt())
-        gav.background = g
         findViewById<TextView>(R.id.tv_greet).text = "سلام ${first?.name ?: ""} 👋"
 
         val trans = Db.allTrans()
@@ -113,22 +120,16 @@ class HomeActivity : android.app.Activity() {
         val box = findViewById<LinearLayout>(R.id.latest_box)
         box.removeAllViews()
         val latest = trans.take(5)
+        homeRows = latest.toMutableList()
         findViewById<TextView>(R.id.tv_empty).visibility =
             if (latest.isEmpty()) View.VISIBLE else View.GONE
         for (t in latest) {
             val v = layoutInflater.inflate(R.layout.item_trans, box, false)
             bindRow(v, t, cats, mem)
+            homeDrag.attach(v, v.findViewById(R.id.drag_handle))
             val isDebt = cats[t.catId]?.name == "بدهی"
             v.setOnClickListener {
-                if (isDebt) {
-                    U.toast(this, "پرداخت بدهی از صفحه بدهی مدیریت می‌شود 💳")
-                } else {
-                    startActivity(android.content.Intent(this, AddTransactionActivity::class.java)
-                        .putExtra("edit_id", t.id)
-                        .putExtra("type", t.type)
-                    )
-                    overridePendingTransition(0, 0)
-                }
+                U.toast(this, U.transInfo(t, cats, mem), true)
             }
             v.setOnLongClickListener {
                 val items = if (isDebt) arrayOf("🗑 حذف") else arrayOf("✏️ ویرایش", "🗑 حذف")
@@ -180,7 +181,8 @@ class HomeActivity : android.app.Activity() {
             val note = if (t.note.isNotBlank()) " — ${t.note}" else ""
             v.findViewById<TextView>(R.id.it_title).text =
                 (cat?.let { "${it.name} ${it.emoji}" } ?: "سایر") + note
-            v.findViewById<TextView>(R.id.it_sub).text = "${m?.name ?: ""} • ${U.nice(t.ts)}"
+            v.findViewById<TextView>(R.id.it_sub).text =
+                "${m?.name ?: ""} • ${U.nice(t.ts)} • ${U.clock(t.ts)}"
             val amt = v.findViewById<TextView>(R.id.it_amount)
             amt.text = (if (t.type == 1) "+ " else "− ") + U.money(t.amount) + " تومان"
             amt.setTextColor(if (t.type == 1) 0xFF059669.toInt() else 0xFFE11D48.toInt())

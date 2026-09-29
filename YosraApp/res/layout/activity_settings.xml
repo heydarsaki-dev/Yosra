@@ -155,6 +155,17 @@
                 android:layout_marginEnd="16dp"/>
 
             <TextView
+                android:id="@+id/btn_cats_more"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:padding="10dp"
+                android:text="▼ نمایش همه"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="@color/purple"/>
+
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="20dp"
@@ -197,6 +208,103 @@
                     android:textStyle="bold"
                     android:textColor="@color/purple"/>
             </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="4dp"
+                android:text="همگام‌سازی گیت‌هاب ☁️"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@color/textDark"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginEnd="20dp"
+                android:layout_marginBottom="8dp"
+                android:text="توکن گیت‌هاب به‌صورت رمزنگاری‌شده داخل اپ هست؛ فقط یک بار رمزش رو وارد کن تا فعال بشه. دیتابیس در ریپوی خصوصی yosra-backup نگه‌داری و با هر بار باز کردن اپ آپلود/دریافت می‌شود."
+                android:lineSpacingExtra="3dp"
+                android:textSize="11sp"
+                android:textColor="@color/textGray"/>
+
+            <EditText
+                android:id="@+id/sync_token"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:hint="رمز باز کردن توکن"
+                android:gravity="right|center_vertical"
+                android:inputType="textPassword"
+                android:textSize="13sp"
+                android:background="@drawable/card"
+                android:padding="14dp"/>
+
+            <TextView
+                android:id="@+id/sync_authed"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:background="@drawable/tile_mint"
+                android:gravity="center"
+                android:padding="14dp"
+                android:text="✅ احراز هویت شد — دیگه نیازی به رمز نیست"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="@color/green"
+                android:visibility="gone"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginTop="8dp">
+                <TextView
+                    android:id="@+id/btn_sync_push"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:background="@drawable/btn_soft"
+                    android:padding="12dp"
+                    android:text="⬆️ آپلود نسخه"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/purple"/>
+                <TextView
+                    android:id="@+id/btn_sync_pull"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:gravity="center"
+                    android:background="@drawable/btn_soft"
+                    android:padding="12dp"
+                    android:text="⬇️ دریافت نسخه"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/purple"/>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/sync_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp"
+                android:gravity="center"
+                android:text="آخرین همگام‌سازی: هنوز نشده"
+                android:textSize="11sp"
+                android:textColor="@color/textGray"/>
 
             <LinearLayout
                 android:layout_width="match_parent"

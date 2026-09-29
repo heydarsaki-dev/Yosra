@@ -164,6 +164,20 @@
                     android:textStyle="bold"
                     android:textColor="@color/purple"/>
                 <TextView
+                    android:id="@+id/btn_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:gravity="center"
+                    android:background="@drawable/chip_on"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:padding="9dp"
+                    android:text="🕐 --:--"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/purple"/>
+                <TextView
                     android:id="@+id/btn_day_today"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"

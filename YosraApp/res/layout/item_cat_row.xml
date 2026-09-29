@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/card"
+    android:elevation="3dp"
+    android:layout_marginBottom="6dp"
+    android:gravity="center_vertical"
+    android:paddingStart="12dp"
+    android:paddingEnd="8dp"
+    android:paddingTop="7dp"
+    android:paddingBottom="7dp">
+
+    <TextView
+        android:id="@+id/m_avatar"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:gravity="center"
+        android:text="⛽"
+        android:textSize="14sp"/>
+
+    <TextView
+        android:id="@+id/m_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="10dp"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:text="سوخت"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="@color/textDark"/>
+
+    <TextView
+        android:id="@+id/m_edit"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:gravity="center"
+        android:text="✏️"
+        android:textSize="13sp"/>
+
+    <TextView
+        android:id="@+id/m_del"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:gravity="center"
+        android:text="🗑"
+        android:textSize="13sp"/>
+</LinearLayout>

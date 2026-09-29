@@ -128,7 +128,7 @@ class ReportsActivity : Activity() {
         next.isClickable = canNext()
 
         val all = Db.allTrans()
-        val period = all.filter { inPeriod(it.ts) }
+        val period = all.filter { inPeriod(it.ts) }.sortedByDescending { it.ts }
         val pIn = period.filter { it.type == 1 }.sumOf { it.amount }
         val pOut = period.filter { it.type == 0 }.sumOf { it.amount }
 
@@ -254,6 +254,7 @@ class ReportsActivity : Activity() {
         for (t in period) {
             val v = layoutInflater.inflate(R.layout.item_trans, box, false)
             HomeActivity.bindRow(v, t, cats, mem)
+            v.findViewById<View>(R.id.drag_handle).visibility = View.GONE
             box.addView(v)
         }
         U.applyFont(box)

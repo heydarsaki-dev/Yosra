@@ -15,7 +15,8 @@ import android.widget.Toast
 class TransactionsActivity : Activity() {
 
     private var filter = 0
-    private var rows: List<Db.Trans> = emptyList()
+    private var rows = mutableListOf<Db.Trans>()
+    private lateinit var listDrag: RowDrag
     private var cats: Map<Long, Db.Category> = emptyMap()
     private var mem: Map<Long, Db.Member> = emptyMap()
     private lateinit var list: ListView
@@ -27,6 +28,7 @@ class TransactionsActivity : Activity() {
         override fun getView(p: Int, cv: View?, parent: ViewGroup?): View {
             val v = cv ?: layoutInflater.inflate(R.layout.item_trans, parent, false)
             HomeActivity.bindRow(v, rows[p], cats, mem)
+            listDrag.attach(v, v.findViewById(R.id.drag_handle))
             U.applyFont(v)
             return v
         }
@@ -41,7 +43,7 @@ class TransactionsActivity : Activity() {
         list.adapter = adapter
         list.emptyView = findViewById(R.id.empty)
         list.onItemClickListener = AdapterView.OnItemClickListener { _, _, pos, _ ->
-            edit(rows[pos])
+            U.toast(this, U.transInfo(rows[pos], cats, mem), true)
         }
         list.onItemLongClickListener = AdapterView.OnItemLongClickListener { _, _, pos, _ ->
             val t = rows[pos]
@@ -58,6 +60,15 @@ class TransactionsActivity : Activity() {
             dlg.window?.decorView?.layoutDirection = android.view.View.LAYOUT_DIRECTION_RTL
             dlg.show()
             true
+        }
+
+        listDrag = RowDrag(list) { from, to ->
+            if (from in rows.indices && to != from) {
+                val moved = rows.removeAt(from)
+                rows.add(to.coerceIn(0, rows.size), moved)
+                Db.reorderTrans(rows.map { it.id })
+                adapter.notifyDataSetChanged()
+            }
         }
 
         findViewById<View>(R.id.btn_new).setOnClickListener {
@@ -126,7 +137,7 @@ class TransactionsActivity : Activity() {
         mem = Db.members().associateBy { it.id }
         rows = Db.allTrans().filter {
             filter == 0 || (filter == 1 && it.type == 1) || (filter == 2 && it.type == 0)
-        }
+        }.toMutableList()
         adapter.notifyDataSetChanged()
     }
 }

@@ -8,4 +8,10 @@ class YosraApp : Application() {
         Db.init(this)
         U.loadFont(this)
     }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        // اپ رفت پس‌زمینه → اگر تغییری روی دیتابیس مانده، آپلود شود
+        if (level == TRIM_MEMORY_UI_HIDDEN) Sync.autoPush(this)
+    }
 }

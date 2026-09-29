@@ -10,6 +10,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -26,6 +28,8 @@ class AddTransactionActivity : Activity() {
     private var selY = 0
     private var selM = 0
     private var selD = 0
+    private var selH = 0
+    private var selM2 = 0
 
     private lateinit var memberBox: LinearLayout
     private lateinit var catBox: LinearLayout
@@ -50,6 +54,9 @@ class AddTransactionActivity : Activity() {
 
         val now = U.jParts(System.currentTimeMillis())
         selY = now[0]; selM = now[1]; selD = now[2]
+        val nc = Calendar.getInstance()
+        selH = nc.get(Calendar.HOUR_OF_DAY)
+        selM2 = nc.get(Calendar.MINUTE)
 
         var note = ""
         if (editId > 0) {
@@ -62,6 +69,9 @@ class AddTransactionActivity : Activity() {
                 etAmount.setText(U.money(t.amount))
                 val p = U.jParts(t.ts)
                 selY = p[0]; selM = p[1]; selD = p[2]
+                val tc = Calendar.getInstance().apply { timeInMillis = t.ts }
+                selH = tc.get(Calendar.HOUR_OF_DAY)
+                selM2 = tc.get(Calendar.MINUTE)
             }
         }
 
@@ -69,7 +79,7 @@ class AddTransactionActivity : Activity() {
 
         for (id in intArrayOf(
             R.id.btn_type_out, R.id.btn_type_in,
-            R.id.btn_date, R.id.btn_day_today
+            R.id.btn_date, R.id.btn_time, R.id.btn_day_today
         )) findViewById<TextView>(id).gravity = Gravity.CENTER
 
         etAmount.addTextChangedListener(object : TextWatcher {
@@ -96,9 +106,13 @@ class AddTransactionActivity : Activity() {
             type = 1; titleText(); restyleType(); buildCats()
         }
         findViewById<View>(R.id.btn_date).setOnClickListener { dateDialog() }
+        findViewById<View>(R.id.btn_time).setOnClickListener { timeDialog() }
         findViewById<View>(R.id.btn_day_today).setOnClickListener {
             val t = U.jParts(System.currentTimeMillis())
             selY = t[0]; selM = t[1]; selD = t[2]
+            val c = Calendar.getInstance()
+            selH = c.get(Calendar.HOUR_OF_DAY)
+            selM2 = c.get(Calendar.MINUTE)
             updateDateBtn()
         }
         findViewById<View>(R.id.btn_save).setOnClickListener { save() }
@@ -111,9 +125,106 @@ class AddTransactionActivity : Activity() {
         U.applyFont(findViewById(android.R.id.content))
     }
 
+    /** انتخاب‌گر ساعت و دقیقه — کاملاً فارسی، سبک خود اپ */
+    private fun timeDialog() {
+        var h = selH
+        var m = selM2
+
+        val root = LinearLayout(this)
+        root.orientation = LinearLayout.VERTICAL
+        root.layoutDirection = View.LAYOUT_DIRECTION_RTL
+        root.setPadding(U.dp(this, 18f), U.dp(this, 16f), U.dp(this, 18f), U.dp(this, 8f))
+
+        val title = TextView(this)
+        title.text = "ساعت و دقیقه 🕐"
+        title.gravity = Gravity.CENTER
+        title.textSize = 16f
+        title.setTextColor(0xFF1A1B2E.toInt())
+        root.addView(title)
+
+        val hourChips = ArrayList<TextView>()
+        val minChips = ArrayList<TextView>()
+        var hourScroll: HorizontalScrollView? = null
+        var minScroll: HorizontalScrollView? = null
+
+        fun paint(c: TextView, on: Boolean) {
+            c.setBackgroundResource(if (on) R.drawable.circle_on else R.drawable.circle)
+            c.setTextColor(if (on) 0xFF6C5CE7.toInt() else 0xFF6B7194.toInt())
+        }
+
+        fun repaint() {
+            hourChips.forEachIndexed { i, c -> paint(c, i == h) }
+            minChips.forEachIndexed { i, c -> paint(c, i == m) }
+        }
+
+        fun addRow(label: String, count: Int, chips: ArrayList<TextView>, set: (Int) -> Unit): HorizontalScrollView {
+            val lbl = TextView(this)
+            lbl.text = label
+            lbl.textSize = 13f
+            lbl.setTextColor(0xFF6B7194.toInt())
+            lbl.setPadding(0, U.dp(this, 14f), 0, U.dp(this, 6f))
+            root.addView(lbl)
+
+            val hs = HorizontalScrollView(this)
+            hs.isHorizontalScrollBarEnabled = false
+            val row = LinearLayout(this)
+            row.orientation = LinearLayout.HORIZONTAL
+            val size = U.dp(this, 44f)
+            val gap = U.dp(this, 5f)
+            row.setPadding(gap, 0, gap, 0)
+            for (i in 0 until count) {
+                val c = TextView(this)
+                c.text = U.fa(i.toString().padStart(2, '0'))
+                c.textSize = 14f
+                c.gravity = Gravity.CENTER
+                val lp = LinearLayout.LayoutParams(size, size)
+                lp.setMargins(gap, 0, gap, 0)
+                c.layoutParams = lp
+                c.setOnClickListener {
+                    set(i)
+                    repaint()
+                }
+                chips.add(c)
+                row.addView(c)
+            }
+            hs.addView(row)
+            root.addView(hs)
+            return hs
+        }
+
+        hourScroll = addRow("ساعت", 24, hourChips) { h = it }
+        minScroll = addRow("دقیقه", 60, minChips) { m = it }
+        repaint()
+
+        val dlg = AlertDialog.Builder(this)
+            .setView(root)
+            .setPositiveButton("تأیید ✓") { _, _ ->
+                selH = h
+                selM2 = m
+                updateDateBtn()
+            }
+            .setNegativeButton("بی‌خیال", null)
+            .create()
+        dlg.window?.decorView?.layoutDirection = View.LAYOUT_DIRECTION_RTL
+        dlg.setOnShowListener {
+            fun center(hs: HorizontalScrollView?, chip: TextView?) {
+                if (hs != null && chip != null)
+                    hs.post { hs.scrollTo(chip.left + chip.width / 2 - hs.width / 2, 0) }
+            }
+            center(hourScroll, hourChips.getOrNull(h))
+            center(minScroll, minChips.getOrNull(m))
+            U.applyFont(dlg.getButton(AlertDialog.BUTTON_POSITIVE))
+            U.applyFont(dlg.getButton(AlertDialog.BUTTON_NEGATIVE))
+            U.applyFont(root)
+        }
+        dlg.show()
+    }
+
     private fun updateDateBtn() {
         findViewById<TextView>(R.id.btn_date).text =
             "🗓 ${U.fa(selD.toString())} ${U.monthName(selM)} ${U.fa(selY.toString())}"
+        findViewById<TextView>(R.id.btn_time).text =
+            "🕐 ${U.fa(selH.toString())}:${U.fa(selM2.toString().padStart(2, '0'))}"
     }
 
     private fun titleText() {
@@ -239,12 +350,11 @@ class AddTransactionActivity : Activity() {
                 val row = LinearLayout(this)
                 row.orientation = LinearLayout.HORIZONTAL
                 for (c in 0 until 7) {
+                    val frame = FrameLayout(this)
+                    frame.layoutParams = LinearLayout.LayoutParams(0, U.dp(this, 48f), 1f)
                     val tv = TextView(this)
                     tv.gravity = Gravity.CENTER
                     tv.textSize = 14f
-                    tv.layoutParams = LinearLayout.LayoutParams(
-                        0, U.dp(this, 42f), 1f
-                    )
                     if (cell in startIdx until (startIdx + dim)) {
                         val day = cell - startIdx + 1
                         tv.text = U.fa(day.toString())
@@ -252,11 +362,11 @@ class AddTransactionActivity : Activity() {
                         val isToday = py == today[0] && pm == today[1] && day == today[2]
                         when {
                             isSel -> {
-                                tv.setBackgroundResource(R.drawable.chip_solid)
-                                tv.setTextColor(0xFFFFFFFF.toInt())
+                                tv.setBackgroundResource(R.drawable.circle_on)
+                                tv.setTextColor(0xFF6C5CE7.toInt())
                             }
                             isToday -> {
-                                tv.setBackgroundResource(R.drawable.chip_on)
+                                tv.setBackgroundResource(R.drawable.circle)
                                 tv.setTextColor(0xFF6C5CE7.toInt())
                             }
                             else -> tv.setTextColor(0xFF1A1B2E.toInt())
@@ -266,7 +376,11 @@ class AddTransactionActivity : Activity() {
                             rebuild()
                         }
                     }
-                    row.addView(tv)
+                    frame.addView(
+                        tv,
+                        FrameLayout.LayoutParams(U.dp(this, 40f), U.dp(this, 40f), Gravity.CENTER)
+                    )
+                    row.addView(frame)
                     cell++
                 }
                 grid.addView(row)
@@ -399,7 +513,14 @@ class AddTransactionActivity : Activity() {
                 return
             }
         }
-        val ts = U.findTs(selY, selM, selD) ?: System.currentTimeMillis()
+        val dayTs = U.findTs(selY, selM, selD) ?: System.currentTimeMillis()
+        val tcal = Calendar.getInstance()
+        tcal.timeInMillis = dayTs
+        tcal.set(Calendar.HOUR_OF_DAY, selH)
+        tcal.set(Calendar.MINUTE, selM2)
+        tcal.set(Calendar.SECOND, 0)
+        tcal.set(Calendar.MILLISECOND, 0)
+        val ts = tcal.timeInMillis
         val note = findViewById<EditText>(R.id.et_note).text.toString().trim()
         if (editId > 0) {
             Db.updateTrans(editId, memberSel, catSel, type, amount, note, ts)

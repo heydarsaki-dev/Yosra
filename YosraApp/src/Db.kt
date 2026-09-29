@@ -24,11 +24,11 @@ object Db {
 
     private fun db(): SQLiteDatabase = helper!!.writableDatabase
 
-    private class Helper(c: Context) : SQLiteOpenHelper(c, "yosra.db", null, 11) {
+    private class Helper(c: Context) : SQLiteOpenHelper(c, "yosra.db", null, 12) {
         override fun onCreate(db: SQLiteDatabase) {
             db.execSQL("CREATE TABLE members(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, emoji TEXT NOT NULL, color INTEGER NOT NULL)")
             db.execSQL("CREATE TABLE categories(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, emoji TEXT NOT NULL, type INTEGER NOT NULL, scope INTEGER NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0)")
-            db.execSQL("CREATE TABLE transactions(id INTEGER PRIMARY KEY AUTOINCREMENT, member_id INTEGER NOT NULL, cat_id INTEGER NOT NULL, type INTEGER NOT NULL, amount INTEGER NOT NULL, note TEXT DEFAULT '', ts INTEGER NOT NULL, is_work INTEGER NOT NULL)")
+            db.execSQL("CREATE TABLE transactions(id INTEGER PRIMARY KEY AUTOINCREMENT, member_id INTEGER NOT NULL, cat_id INTEGER NOT NULL, type INTEGER NOT NULL, amount INTEGER NOT NULL, note TEXT DEFAULT '', ts INTEGER NOT NULL, is_work INTEGER NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0)")
             db.execSQL("CREATE TABLE IF NOT EXISTS installments(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, amount INTEGER NOT NULL, day INTEGER NOT NULL, start_y INTEGER NOT NULL DEFAULT 0, start_m INTEGER NOT NULL DEFAULT 0, months INTEGER NOT NULL DEFAULT 0, type INTEGER NOT NULL DEFAULT 0, total_amount INTEGER NOT NULL DEFAULT 0, paid_total INTEGER NOT NULL DEFAULT 0)")
             db.execSQL("CREATE TABLE IF NOT EXISTS inst_paid(inst_id INTEGER NOT NULL, y INTEGER NOT NULL, m INTEGER NOT NULL, tx_id INTEGER NOT NULL DEFAULT 0, paid_amount INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(inst_id,y,m))")
             db.execSQL("CREATE TABLE IF NOT EXISTS debts(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, total INTEGER NOT NULL, monthly INTEGER NOT NULL, start_y INTEGER NOT NULL, start_m INTEGER NOT NULL)")
@@ -83,6 +83,10 @@ object Db {
             if (oldVersion < 11) {
                 db.execSQL("CREATE TABLE IF NOT EXISTS debts(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, total INTEGER NOT NULL, monthly INTEGER NOT NULL, start_y INTEGER NOT NULL, start_m INTEGER NOT NULL)")
                 db.execSQL("CREATE TABLE IF NOT EXISTS debt_paid(debt_id INTEGER NOT NULL, idx INTEGER NOT NULL, tx_id INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(debt_id,idx))")
+            }
+            if (oldVersion < 12) {
+                db.execSQL("ALTER TABLE transactions ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("UPDATE transactions SET sort_order = (SELECT COUNT(*) FROM transactions t2 WHERE t2.ts > transactions.ts OR (t2.ts = transactions.ts AND t2.id > transactions.id))")
             }
         }
 
@@ -437,12 +441,15 @@ object Db {
         v.put("member_id", memberId); v.put("cat_id", catId); v.put("type", type)
         v.put("amount", amount); v.put("note", note); v.put("ts", ts)
         v.put("is_work", if (isWork) 1 else 0)
+        val minS = db().rawQuery("SELECT IFNULL(MIN(sort_order),1)-1 FROM transactions", null)
+            .use { it.moveToFirst(); it.getLong(0) }
+        v.put("sort_order", minS)
         return db().insert("transactions", null, v)
     }
 
     fun allTrans(): List<Trans> {
         val out = ArrayList<Trans>()
-        val c = db().rawQuery("SELECT id,member_id,cat_id,type,amount,note,ts,is_work FROM transactions ORDER BY ts DESC,id DESC", null)
+        val c = db().rawQuery("SELECT id,member_id,cat_id,type,amount,note,ts,is_work FROM transactions ORDER BY sort_order ASC,ts DESC,id DESC", null)
         c.use {
             while (it.moveToNext()) out.add(
                 Trans(it.getLong(0), it.getLong(1), it.getLong(2), it.getInt(3),
@@ -450,6 +457,38 @@ object Db {
             )
         }
         return out
+    }
+
+    /** جابجایی دستی ترتیب — مقادیر sort_order بین همین ردیف‌ها جابجا می‌شوند تا بقیه‌ها جابه‌جا نشن */
+    fun reorderTrans(ids: List<Long>) {
+        if (ids.size < 2) return
+        val d = db()
+        val marks = ids.joinToString(",") { "?" }
+        val cur = LinkedHashMap<Long, Long>()
+        d.rawQuery("SELECT id, sort_order FROM transactions WHERE id IN ($marks)",
+            ids.map { it.toString() }.toTypedArray()).use {
+            while (it.moveToNext()) cur[it.getLong(0)] = it.getLong(1)
+        }
+        if (cur.size < 2) return
+        val sorted = cur.values.sorted()
+        val values = if (sorted.distinct().size == sorted.size) sorted
+        else {
+            val base = (sorted.minOrNull() ?: 0L) - sorted.size
+            sorted.mapIndexed { i, _ -> base + i }
+        }
+        d.beginTransaction()
+        try {
+            var i = 0
+            for (id in ids) {
+                if (!cur.containsKey(id)) continue
+                d.execSQL("UPDATE transactions SET sort_order=? WHERE id=?",
+                    arrayOf(values[i].toString(), id.toString()))
+                i++
+            }
+            d.setTransactionSuccessful()
+        } finally {
+            d.endTransaction()
+        }
     }
 
     fun deleteTrans(id: Long) {
@@ -497,6 +536,16 @@ object Db {
         } catch (_: Exception) {}
         val f = java.io.File(db.path)
         f.inputStream().use { it.copyTo(out) }
+    }
+
+    /** فایل دیتابیس — برای تشخیص تغییرات آپلودنشده */
+    fun dbFile(): java.io.File = java.io.File(db().path)
+
+    /** همگام‌سازی WAL با فایل اصلی — قبل از مقایسه زمان/آپلود */
+    fun checkpointNow() {
+        try {
+            db().rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { it.moveToFirst() }
+        } catch (_: Exception) {}
     }
 
     fun restoreFrom(data: ByteArray): Boolean {

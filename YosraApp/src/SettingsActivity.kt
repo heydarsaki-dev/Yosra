@@ -18,6 +18,7 @@ class SettingsActivity : Activity() {
 
     private val emojis = arrayOf("", "🚕", "🏠", "🍔", "⛽", "🧾", "🛒", "💊", "🎮", "🔧", "💰", "💵", "⭐")
     private var catType = 1
+    private var catExpanded = false
 
     private var catBoxRef: LinearLayout? = null
     private var curCats: List<Db.Category> = emptyList()
@@ -37,6 +38,89 @@ class SettingsActivity : Activity() {
         findViewById<View>(R.id.btn_cats_out).setOnClickListener { catType = 0; render() }
         findViewById<View>(R.id.btn_backup).setOnClickListener { backup() }
         findViewById<View>(R.id.btn_restore).setOnClickListener { restore() }
+        findViewById<View>(R.id.btn_sync_push).setOnClickListener { syncPush() }
+        findViewById<View>(R.id.btn_sync_pull).setOnClickListener { syncPull() }
+    }
+
+    /** نمایش فیلد رمز یا کارت احراز هویت‌شده */
+    private fun renderAuthUi() {
+        val authed = Sync.token(this).isNotEmpty()
+        findViewById<View>(R.id.sync_token).visibility = if (authed) View.GONE else View.VISIBLE
+        findViewById<TextView>(R.id.sync_authed).visibility = if (authed) View.VISIBLE else View.GONE
+    }
+
+    /** اگر قبلاً فعال شده بی‌ارمز آماده است؛ وگرنه رمز فیلد را باز می‌کند */
+    private fun ensureUnlocked(): Boolean {
+        if (Sync.token(this).isEmpty()) {
+            val pw = findViewById<EditText>(R.id.sync_token).text.toString()
+            if (pw.isEmpty()) {
+                U.toast(this, "اول رمز توکن رو وارد کن ⚙️")
+                return false
+            }
+            if (!Sync.unlockWithPassword(this, pw)) {
+                U.toast(this, "رمز اشتباه است ❌", true)
+                return false
+            }
+            findViewById<EditText>(R.id.sync_token).setText("")
+            renderAuthUi()
+            renderSyncStatus()
+        }
+        return true
+    }
+
+    private fun syncPush() {
+        if (!ensureUnlocked()) return
+        U.toast(this, "در حال آپلود...")
+        Thread {
+            val msg = try { Sync.pushNow(applicationContext) } catch (e: Exception) { "⚠️ ${e.message}" }
+            runOnUiThread {
+                U.toast(this, msg, true)
+                renderSyncStatus()
+            }
+        }.start()
+    }
+
+    private fun syncPull() {
+        if (!ensureUnlocked()) return
+        val go = { force: Boolean ->
+            U.toast(this, "در حال دریافت...")
+            Thread {
+                val msg = try { Sync.pullNow(applicationContext, force) } catch (e: Exception) { "⚠️ ${e.message}" }
+                runOnUiThread {
+                    U.toast(this, msg, true)
+                    renderSyncStatus()
+                    render()
+                }
+            }.start()
+        }
+        // اگر تغییرات آپلودنشده محلی هست، اول هشدار بده
+        Thread {
+            val msg = try { Sync.pullNow(applicationContext, false) } catch (e: Exception) { "⚠️ ${e.message}" }
+            val blocked = msg.startsWith("تغییرات")
+            runOnUiThread {
+                if (!blocked) {
+                    U.toast(this, msg, true)
+                    renderSyncStatus()
+                    render()
+                } else {
+                    val dlg = AlertDialog.Builder(this)
+                        .setMessage("تغییرات آپلودنشده محلی داری. دریافت نسخه گیت‌هاب اونا رو جایگزین می‌کنه. ادامه بدم؟")
+                        .setPositiveButton("بله، دریافت کن") { _, _ -> go(true) }
+                        .setNegativeButton("بی‌خیال", null)
+                        .create()
+                    dlg.window?.decorView?.layoutDirection = View.LAYOUT_DIRECTION_RTL
+                    dlg.show()
+                }
+            }
+        }.start()
+    }
+
+    private fun renderSyncStatus() {
+        val tv = findViewById<TextView>(R.id.sync_status)
+        tv.text = if (Sync.token(this).isEmpty())
+            "🔒 رمز وارد نشده — همگام‌سازی غیرفعال است"
+        else
+            "آخرین همگام‌سازی: ${Sync.lastSyncText(this)}"
     }
 
     private fun backup() {
@@ -94,6 +178,8 @@ class SettingsActivity : Activity() {
         super.onResume()
         Nav.bind(this, 3)
         render()
+        renderAuthUi()
+        renderSyncStatus()
     }
 
     private fun render() {
@@ -131,13 +217,26 @@ class SettingsActivity : Activity() {
 
         val cBox = findViewById<LinearLayout>(R.id.cat_box)
         cBox.removeAllViews()
-        val cats = Db.categories().filter { it.type == catType }
+        val allCats = Db.categories().filter { it.type == catType }
+        val cats = if (catExpanded) allCats else allCats.take(4)
         curCats = cats
         catBoxRef = cBox
         paintToggle(R.id.btn_cats_in, catType == 1, 0xFF059669.toInt())
         paintToggle(R.id.btn_cats_out, catType == 0, 0xFFE11D48.toInt())
+
+        val more = findViewById<TextView>(R.id.btn_cats_more)
+        if (allCats.size > 4) {
+            more.visibility = View.VISIBLE
+            more.text = if (catExpanded) "▲ بستن لیست"
+            else "▼ نمایش همهٔ ${U.fa(allCats.size.toString())} دسته"
+            more.setOnClickListener { catExpanded = !catExpanded; render() }
+            U.applyFont(more)
+        } else {
+            more.visibility = View.GONE
+        }
+
         for (c in cats) {
-            val v = layoutInflater.inflate(R.layout.item_member, cBox, false)
+            val v = layoutInflater.inflate(R.layout.item_cat_row, cBox, false)
             val av = v.findViewById<TextView>(R.id.m_avatar)
             av.text = c.emoji
             val gd = GradientDrawable()
@@ -145,14 +244,6 @@ class SettingsActivity : Activity() {
             gd.setColor(if (c.type == 1) 0xFFD5F2E5.toInt() else 0xFFFCDBE3.toInt())
             av.background = gd
             v.findViewById<TextView>(R.id.m_name).text = c.name
-            val sub = v.findViewById<TextView>(R.id.m_sub)
-            if (c.type == 1) {
-                sub.text = "دسته درآمد"
-                sub.setTextColor(0xFF059669.toInt())
-            } else {
-                sub.text = "دسته خرج"
-                sub.setTextColor(0xFFE11D48.toInt())
-            }
             v.findViewById<View>(R.id.m_edit).setOnClickListener { catDialog(c) }
             v.findViewById<View>(R.id.m_del).setOnClickListener {
                 confirm("دسته «${c.name}» حذف بشه؟ تراکنش‌های قبلی‌اش بی‌دسته می‌شوند.") {

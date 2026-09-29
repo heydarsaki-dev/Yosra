@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="@color/bg">
+
+    <ImageView
+        android:id="@+id/sp_logo"
+        android:layout_width="130dp"
+        android:layout_height="130dp"
+        android:background="@drawable/avatar_glass"
+        android:clipToOutline="true"
+        android:scaleType="centerCrop"
+        android:src="@drawable/ic_launcher"
+        android:elevation="8dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="22dp"
+        android:text="یسرا"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:textColor="@color/purple"/>
+
+    <TextView
+        android:id="@+id/sp_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="نسخه ۱.۰.۰"
+        android:textSize="13sp"
+        android:textColor="@color/textGray"/>
+
+    <ProgressBar
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginTop="20dp"
+        android:indeterminate="true"
+        android:indeterminateTint="@color/purple"/>
+
+</LinearLayout>
