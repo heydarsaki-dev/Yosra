@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * اسپلش ابتدای اجرا: نمایش لوگو + همگام‌سازی دیتابیس با گیت‌هاب در پشت پرده
  * (حداکثر ۷ ثانیه؛ بعد از آن بدون توجه به ادامه کار، وارد اپ می‌شویم)
  */
-class SplashActivity : Activity() {
+class SplashActivity : BaseActivity() {
 
     private val done = AtomicBoolean(false)
 
@@ -42,7 +42,10 @@ class SplashActivity : Activity() {
     private fun go() {
         if (!done.compareAndSet(false, true)) return
         Sync.markSplashDone()
-        startActivity(android.content.Intent(this, HomeActivity::class.java))
+        // اولین اجرا: اگر توکن هنوز باز نشده، صفحهٔ ورود می‌آید (یک بار برای همیشه)
+        val next = if (Sync.token(this).isEmpty()) LoginActivity::class.java
+                   else HomeActivity::class.java
+        startActivity(android.content.Intent(this, next))
         finish()
         overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
     }

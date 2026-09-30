@@ -171,6 +171,80 @@
                 android:layout_marginStart="20dp"
                 android:layout_marginTop="20dp"
                 android:layout_marginBottom="8dp"
+                android:text="ظاهر برنامه 🎨"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@color/textDark"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:paddingBottom="4dp">
+
+                <TextView
+                    android:id="@+id/btn_theme_system"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/chip_on"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:paddingTop="7dp"
+                    android:paddingBottom="7dp"
+                    android:text="📱 خودکار"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/purple"/>
+
+                <TextView
+                    android:id="@+id/btn_theme_light"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/chip"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:paddingTop="7dp"
+                    android:paddingBottom="7dp"
+                    android:text="☀️ روشن"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/textGray"/>
+
+                <TextView
+                    android:id="@+id/btn_theme_dark"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/chip"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:paddingTop="7dp"
+                    android:paddingBottom="7dp"
+                    android:text="🌙 تاریک"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/textGray"/>
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:paddingBottom="4dp"
+                android:text="«خودکار» از حالت تاریک تنظیمات گوشی پیروی می‌کند"
+                android:textSize="11sp"
+                android:textColor="@color/textGray"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="8dp"
                 android:text="پشتیبان‌گیری 💾"
                 android:textSize="15sp"
                 android:textStyle="bold"
@@ -226,38 +300,10 @@
                 android:layout_marginStart="20dp"
                 android:layout_marginEnd="20dp"
                 android:layout_marginBottom="8dp"
-                android:text="توکن گیت‌هاب به‌صورت رمزنگاری‌شده داخل اپ هست؛ فقط یک بار رمزش رو وارد کن تا فعال بشه. دیتابیس در ریپوی خصوصی yosra-backup نگه‌داری و با هر بار باز کردن اپ آپلود/دریافت می‌شود."
+                android:text="رمز ورود فقط یک بار در اولین اجرا از شما گرفته شد و برای همیشه ذخیره شده. دیتابیس در ریپوی خصوصی yosra-backup نگه‌داری می‌شود؛ با هر بار باز کردن اپ، تغییرات به‌صورت دوطرفه با داشبورد وب همگام می‌شوند."
                 android:lineSpacingExtra="3dp"
                 android:textSize="11sp"
                 android:textColor="@color/textGray"/>
-
-            <EditText
-                android:id="@+id/sync_token"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginEnd="16dp"
-                android:hint="رمز باز کردن توکن"
-                android:gravity="right|center_vertical"
-                android:inputType="textPassword"
-                android:textSize="13sp"
-                android:background="@drawable/card"
-                android:padding="14dp"/>
-
-            <TextView
-                android:id="@+id/sync_authed"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_marginEnd="16dp"
-                android:background="@drawable/tile_mint"
-                android:gravity="center"
-                android:padding="14dp"
-                android:text="✅ احراز هویت شد — دیگه نیازی به رمز نیست"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:textColor="@color/green"
-                android:visibility="gone"/>
 
             <LinearLayout
                 android:layout_width="match_parent"

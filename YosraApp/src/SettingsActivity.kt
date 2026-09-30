@@ -14,7 +14,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 
-class SettingsActivity : Activity() {
+class SettingsActivity : BaseActivity() {
 
     private val emojis = arrayOf("", "🚕", "🏠", "🍔", "⛽", "🧾", "🛒", "💊", "🎮", "🔧", "💰", "💵", "⭐")
     private var catType = 1
@@ -40,56 +40,63 @@ class SettingsActivity : Activity() {
         findViewById<View>(R.id.btn_restore).setOnClickListener { restore() }
         findViewById<View>(R.id.btn_sync_push).setOnClickListener { syncPush() }
         findViewById<View>(R.id.btn_sync_pull).setOnClickListener { syncPull() }
+        findViewById<View>(R.id.btn_theme_system).setOnClickListener { pickTheme(T.SYSTEM) }
+        findViewById<View>(R.id.btn_theme_light).setOnClickListener { pickTheme(T.LIGHT) }
+        findViewById<View>(R.id.btn_theme_dark).setOnClickListener { pickTheme(T.DARK) }
     }
 
-    /** نمایش فیلد رمز یا کارت احراز هویت‌شده */
-    private fun renderAuthUi() {
-        val authed = Sync.token(this).isNotEmpty()
-        findViewById<View>(R.id.sync_token).visibility = if (authed) View.GONE else View.VISIBLE
-        findViewById<TextView>(R.id.sync_authed).visibility = if (authed) View.VISIBLE else View.GONE
+    /** انتخاب حالت ظاهر + ری‌استارت کامل برای اعمال uiMode روی همه اکتیویتی‌ها */
+    private fun pickTheme(m: String) {
+        if (T.mode == m) return
+        T.pick(this, m)
+        U.toast(
+            applicationContext,
+            when (m) {
+                T.DARK -> "حالت تاریک فعال شد 🌙"
+                T.LIGHT -> "حالت روشن فعال شد ☀️"
+                else -> "حالتش از سیستم پیروی می‌کنه 📱"
+            }
+        )
+        val i = android.content.Intent(this, SplashActivity::class.java)
+        i.addFlags(
+            android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
+        )
+        startActivity(i)
+        overridePendingTransition(0, 0)
+        finish()
     }
 
-    /** اگر قبلاً فعال شده بی‌ارمز آماده است؛ وگرنه رمز فیلد را باز می‌کند */
-    private fun ensureUnlocked(): Boolean {
-        if (Sync.token(this).isEmpty()) {
-            val pw = findViewById<EditText>(R.id.sync_token).text.toString()
-            if (pw.isEmpty()) {
-                U.toast(this, "اول رمز توکن رو وارد کن ⚙️")
-                return false
-            }
-            if (!Sync.unlockWithPassword(this, pw)) {
-                U.toast(this, "رمز اشتباه است ❌", true)
-                return false
-            }
-            findViewById<EditText>(R.id.sync_token).setText("")
-            renderAuthUi()
-            renderSyncStatus()
+    private fun paintTheme() {
+        fun p(id: Int, sel: Boolean) {
+            val v = findViewById<TextView>(id)
+            v.setBackgroundResource(if (sel) R.drawable.chip_on else R.drawable.chip)
+            v.setTextColor(if (sel) T.primary else T.text2)
         }
-        return true
+        p(R.id.btn_theme_system, T.mode == T.SYSTEM)
+        p(R.id.btn_theme_light, T.mode == T.LIGHT)
+        p(R.id.btn_theme_dark, T.mode == T.DARK)
     }
 
     private fun syncPush() {
-        if (!ensureUnlocked()) return
         U.toast(this, "در حال آپلود...")
         Thread {
             val msg = try { Sync.pushNow(applicationContext) } catch (e: Exception) { "⚠️ ${e.message}" }
             runOnUiThread {
                 U.toast(this, msg, true)
-                renderSyncStatus()
+                try { renderSyncStatus(); render() } catch (_: Exception) {}
             }
         }.start()
     }
 
     private fun syncPull() {
-        if (!ensureUnlocked()) return
         val go = { force: Boolean ->
             U.toast(this, "در حال دریافت...")
             Thread {
                 val msg = try { Sync.pullNow(applicationContext, force) } catch (e: Exception) { "⚠️ ${e.message}" }
                 runOnUiThread {
                     U.toast(this, msg, true)
-                    renderSyncStatus()
-                    render()
+                    try { renderSyncStatus(); render() } catch (_: Exception) {}
                 }
             }.start()
         }
@@ -100,8 +107,7 @@ class SettingsActivity : Activity() {
             runOnUiThread {
                 if (!blocked) {
                     U.toast(this, msg, true)
-                    renderSyncStatus()
-                    render()
+                    try { renderSyncStatus(); render() } catch (_: Exception) {}
                 } else {
                     val dlg = AlertDialog.Builder(this)
                         .setMessage("تغییرات آپلودنشده محلی داری. دریافت نسخه گیت‌هاب اونا رو جایگزین می‌کنه. ادامه بدم؟")
@@ -118,7 +124,7 @@ class SettingsActivity : Activity() {
     private fun renderSyncStatus() {
         val tv = findViewById<TextView>(R.id.sync_status)
         tv.text = if (Sync.token(this).isEmpty())
-            "🔒 رمز وارد نشده — همگام‌سازی غیرفعال است"
+            "🔒 وارد نشده‌ای — از صفحه ورود اول وارد شو"
         else
             "آخرین همگام‌سازی: ${Sync.lastSyncText(this)}"
     }
@@ -178,8 +184,8 @@ class SettingsActivity : Activity() {
         super.onResume()
         Nav.bind(this, 3)
         render()
-        renderAuthUi()
         renderSyncStatus()
+        paintTheme()
     }
 
     private fun render() {
@@ -221,8 +227,8 @@ class SettingsActivity : Activity() {
         val cats = if (catExpanded) allCats else allCats.take(4)
         curCats = cats
         catBoxRef = cBox
-        paintToggle(R.id.btn_cats_in, catType == 1, 0xFF059669.toInt())
-        paintToggle(R.id.btn_cats_out, catType == 0, 0xFFE11D48.toInt())
+        paintToggle(R.id.btn_cats_in, catType == 1, T.green)
+        paintToggle(R.id.btn_cats_out, catType == 0, T.red)
 
         val more = findViewById<TextView>(R.id.btn_cats_more)
         if (allCats.size > 4) {
@@ -241,7 +247,7 @@ class SettingsActivity : Activity() {
             av.text = c.emoji
             val gd = GradientDrawable()
             gd.shape = GradientDrawable.OVAL
-            gd.setColor(if (c.type == 1) 0xFFD5F2E5.toInt() else 0xFFFCDBE3.toInt())
+            gd.setColor(if (c.type == 1) T.greenSoft else T.redSoft)
             av.background = gd
             v.findViewById<TextView>(R.id.m_name).text = c.name
             v.findViewById<View>(R.id.m_edit).setOnClickListener { catDialog(c) }
@@ -256,7 +262,7 @@ class SettingsActivity : Activity() {
             val handle = TextView(this)
             handle.text = "⠿"
             handle.textSize = 17f
-            handle.setTextColor(0xFF9AA0BC.toInt())
+            handle.setTextColor(T.gray)
             handle.setPadding(U.dp(this, 7f), U.dp(this, 6f), U.dp(this, 4f), U.dp(this, 6f))
             (v as LinearLayout).addView(handle)
 
@@ -344,7 +350,7 @@ class SettingsActivity : Activity() {
     private fun paintToggle(id: Int, on: Boolean, color: Int) {
         val v = findViewById<TextView>(id)
         v.setBackgroundResource(if (on) R.drawable.chip_on else R.drawable.chip)
-        v.setTextColor(if (on) color else 0xFF6B7194.toInt())
+        v.setTextColor(if (on) color else T.text2)
     }
 
     private fun confirm(msg: String, action: () -> Unit) {
@@ -435,8 +441,8 @@ class SettingsActivity : Activity() {
         val tOut = TextView(this)
         val tIn = TextView(this)
         for ((tv, tt, col) in listOf(
-            Triple(tIn, "درآمد", 0xFF059669.toInt()),
-            Triple(tOut, "خرج", 0xFFE11D48.toInt())
+            Triple(tIn, "درآمد", T.green),
+            Triple(tOut, "خرج", T.red)
         )) {
             tv.text = tt
             tv.textSize = 14f
@@ -449,9 +455,9 @@ class SettingsActivity : Activity() {
         }
         fun paintType() {
             tOut.setBackgroundResource(if (typeSel == 0) R.drawable.chip_on else R.drawable.chip)
-            tOut.setTextColor(if (typeSel == 0) 0xFFE11D48.toInt() else 0xFF6B7194.toInt())
+            tOut.setTextColor(if (typeSel == 0) T.red else T.text2)
             tIn.setBackgroundResource(if (typeSel == 1) R.drawable.chip_on else R.drawable.chip)
-            tIn.setTextColor(if (typeSel == 1) 0xFF059669.toInt() else 0xFF6B7194.toInt())
+            tIn.setTextColor(if (typeSel == 1) T.green else T.text2)
         }
         tOut.setOnClickListener { typeSel = 0; paintType() }
         tIn.setOnClickListener { typeSel = 1; paintType() }
@@ -543,7 +549,7 @@ class SettingsActivity : Activity() {
             val g = GradientDrawable()
             g.shape = GradientDrawable.OVAL
             g.setColor(colors[i])
-            if (colors[i] == sel) g.setStroke(U.dp(this, 3f), 0xFF1A1B2E.toInt())
+            if (colors[i] == sel) g.setStroke(U.dp(this, 3f), T.text)
             views[i].background = g
         }
     }
@@ -552,7 +558,7 @@ class SettingsActivity : Activity() {
         val t = TextView(this)
         t.text = txt
         t.textSize = 13f
-        t.setTextColor(0xFF6B7194.toInt())
+        t.setTextColor(T.text2)
         val lp = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
         )

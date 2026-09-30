@@ -12,7 +12,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 
-class InstallmentsActivity : Activity() {
+class InstallmentsActivity : BaseActivity() {
 
     private var debts: List<Db.Debt> = emptyList()
 
@@ -51,9 +51,9 @@ class InstallmentsActivity : Activity() {
         findViewById<TextView>(R.id.ins_left).text = U.money(total - paidAmt) + " تومان"
         findViewById<TextView>(R.id.ins_count).text = U.rich(
             Triple("💸 ", 0, false),
-            Triple(U.fa(debts.size.toString()), 0xFF6C5CE7.toInt(), true),
+            Triple(U.fa(debts.size.toString()), T.primary, true),
             Triple(" طلبکار   ·   ", 0, false),
-            Triple(U.fa(paidCount.toString()), 0xFF059669.toInt(), true),
+            Triple(U.fa(paidCount.toString()), T.green, true),
             Triple(" پرداخت‌شده", 0, false)
         )
 
@@ -78,11 +78,11 @@ class InstallmentsActivity : Activity() {
             if (remaining > 0) {
                 st.text = "جزئیات ‹"
                 st.setBackgroundResource(R.drawable.chip_pay)
-                st.setTextColor(0xFFFFFFFF.toInt())
+                st.setTextColor(T.onBrand)
             } else {
                 st.text = "✓ تسویه شد"
                 st.setBackgroundResource(R.drawable.chip_paid)
-                st.setTextColor(0xFFFFFFFF.toInt())
+                st.setTextColor(T.onBrand)
             }
 
             val open = View.OnClickListener {
@@ -140,7 +140,7 @@ class InstallmentsActivity : Activity() {
         tvStart.text = if (edit == null) "از ماه ${periodNow()} شروع می‌شود"
         else "شروع: ${U.monthName(edit.startM)} ${U.fa(edit.startY.toString())}"
         tvStart.textSize = 12f
-        tvStart.setTextColor(0xFF6C5CE7.toInt())
+        tvStart.setTextColor(T.primary)
         tvStart.setPadding(0, 0, 0, U.dp(this, 10f))
         root.addView(tvStart)
 
@@ -182,7 +182,7 @@ class InstallmentsActivity : Activity() {
 
         val tvPreview = TextView(this)
         tvPreview.textSize = 12f
-        tvPreview.setTextColor(0xFF9AA0BC.toInt())
+        tvPreview.setTextColor(T.gray)
         val lp3 = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
         )
@@ -242,7 +242,7 @@ class InstallmentsActivity : Activity() {
         val t = TextView(this)
         t.text = text
         t.textSize = 13f
-        t.setTextColor(0xFF6B7194.toInt())
+        t.setTextColor(T.text2)
         val lp = LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
         )

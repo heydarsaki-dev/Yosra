@@ -6,7 +6,7 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 
-class HomeActivity : android.app.Activity() {
+class HomeActivity : BaseActivity() {
 
     private var homeRows = mutableListOf<Db.Trans>()
     private lateinit var homeDrag: RowDrag
@@ -86,7 +86,7 @@ class HomeActivity : android.app.Activity() {
         val bal = Db.balance()
         val tvB = findViewById<TextView>(R.id.tv_m_balance)
         tvB.text = U.money(bal) + " تومان"
-        tvB.setTextColor(if (bal < 0) 0xFFE11D48.toInt() else 0xFF6C5CE7.toInt())
+        tvB.setTextColor(if (bal < 0) T.red else T.primary)
         findViewById<TextView>(R.id.tv_today_snapp).text = U.money(tIn) + " تومان"
         findViewById<TextView>(R.id.tv_today_exp).text = U.money(tOut) + " تومان"
 
@@ -176,7 +176,7 @@ class HomeActivity : android.app.Activity() {
             av.text = m?.emoji ?: "؟"
             val gd = GradientDrawable()
             gd.shape = GradientDrawable.OVAL
-            gd.setColor(m?.color ?: 0xFF6C5CE7.toInt())
+            gd.setColor(m?.color ?: T.primary)
             av.background = gd
             val note = if (t.note.isNotBlank()) " — ${t.note}" else ""
             v.findViewById<TextView>(R.id.it_title).text =
@@ -185,7 +185,7 @@ class HomeActivity : android.app.Activity() {
                 "${m?.name ?: ""} • ${U.nice(t.ts)} • ${U.clock(t.ts)}"
             val amt = v.findViewById<TextView>(R.id.it_amount)
             amt.text = (if (t.type == 1) "+ " else "− ") + U.money(t.amount) + " تومان"
-            amt.setTextColor(if (t.type == 1) 0xFF059669.toInt() else 0xFFE11D48.toInt())
+            amt.setTextColor(if (t.type == 1) T.green else T.red)
         }
     }
 }

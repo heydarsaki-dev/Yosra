@@ -1,5 +1,6 @@
 package ir.yosra.app
 
+import android.content.ContentValues
 import android.content.Context
 import android.util.Base64
 import org.json.JSONArray
@@ -15,9 +16,12 @@ import java.util.concurrent.atomic.AtomicBoolean
  * همگام‌سازی دیتابیس با یک ریپوی خصوصی در گیت‌هاب (yosra-backup).
  * دلیل خصوصی بودن: ریپوی اصلی عمومی است و دیتابیس مالی نباید دیده شود.
  *
- * منطق:
- *  - تغییرات محلی داری (فایل بعد از آخرین همگام‌سازی عوض شده) → آپلود
- *  - تمیزی و نسخه گیت‌هاب جدیدتر → دانلود و بازیابی
+ * سناریوها:
+ *  - تمیز + آنلاین جدیدتر      → دریافت و جایگزینی
+ *  - تغییر محلی + آنلاین قدیم‌تر → آپلود
+ *  - تغییر محلی + آنلاین جدیدتر → **ادغام**: دریافت نسخهٔ آنلاین، اعمال
+ *    تغییرات محلی روی آن (با ثبت تغییرات در outbox) و سپس آپلود نتیجه.
+ *    این یعنی داده‌های هیچ‌یک از دو طرف (اپ اندروید / داشبورد وب) گم نمی‌شود.
  *  - بدون توکن → هیچ کاری نمی‌کند
  */
 object Sync {
@@ -25,6 +29,8 @@ object Sync {
     private const val REPO = "yosra-backup"
     private const val FILE = "yosra.db"
     private const val TOL = 60_000L // تلورانس ساعت سرور
+    private const val OUTBOX = "outbox"
+    private const val OUTBOX_CAP = 300
 
     private val busy = AtomicBoolean(false)
 
@@ -32,6 +38,9 @@ object Sync {
     private val lock = Any()
     @Volatile private var splashDone = false
     fun markSplashDone() = synchronized(lock) { splashDone = true }
+
+    /** در صفحهٔ ورود: همگام‌سازی اجازه دارد دیتابیس را جایگزین کند (هنوز وارد خانه نشده‌ایم) */
+    fun markPreHome() = synchronized(lock) { splashDone = false }
 
     private class Repo(val login: String, val branch: String)
 
@@ -89,6 +98,86 @@ object Sync {
         Db.checkpointNow()
         return Db.dbFile().lastModified() > lastSync(c)
     }
+
+    // ───────────────────────── ثبت تغییرات محلی (outbox) ─────────────────────────
+    // هر تغییری که اپ می‌دهد (درج/ویرایش/حذف) در این صف می‌افتد تا هنگام تداخل،
+    // روی نسخهٔ آنلاین اعمال شود. op: 0=درج 1=ویرایش 2=حذف
+
+    data class OutEntry(val table: String, val keyParts: List<Long>, val op: Int, val row: ContentValues)
+
+    @Synchronized
+    fun logChange(c: Context, table: String, key: String, op: Int, cv: ContentValues?) {
+        try {
+            val arr = loadOutbox(c)
+            val o = JSONObject()
+            o.put("t", table)
+            o.put("k", key)
+            o.put("o", op)
+            if (cv != null) {
+                val r = JSONObject()
+                for (k in cv.keySet()) {
+                    val v = cv.get(k) ?: continue
+                    when (v) {
+                        is Long -> r.put(k, v)
+                        is Int -> r.put(k, v)
+                        is String -> r.put(k, v)
+                        is Boolean -> r.put(k, v)
+                        else -> r.put(k, v.toString())
+                    }
+                }
+                o.put("r", r)
+            }
+            arr.put(o)
+            // کاپ: قدیمی‌ترین ورودی‌ها حذف می‌شوند
+            val toDrop = arr.length() - OUTBOX_CAP
+            val save = if (toDrop > 0) {
+                val keep = JSONArray()
+                for (i in toDrop until arr.length()) keep.put(arr[i])
+                keep
+            } else arr
+            prefs(c).edit().putString(OUTBOX, save.toString()).apply()
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun loadOutbox(c: Context): JSONArray {
+        val raw = prefs(c).getString(OUTBOX, "[]") ?: "[]"
+        return try { JSONArray(raw) } catch (_: Exception) { JSONArray() }
+    }
+
+    fun outbox(c: Context): List<OutEntry> {
+        val out = ArrayList<OutEntry>()
+        val arr = loadOutbox(c)
+        for (i in 0 until arr.length()) {
+            try {
+                val o = arr.getJSONObject(i)
+                val parts = o.optString("k").split(",").map { it.trim().toLong() }
+                val r = o.optJSONObject("r")
+                val cv = ContentValues()
+                if (r != null) {
+                    val keys = r.keys()
+                    while (keys.hasNext()) {
+                        val k = keys.next()
+                        when (val v = r.get(k)) {
+                            is Number -> cv.put(k, v.toLong())
+                            is String -> cv.put(k, v)
+                            is Boolean -> cv.put(k, v)
+                        }
+                    }
+                }
+                out.add(OutEntry(o.optString("t"), parts, o.optInt("o"), cv))
+            } catch (_: Exception) {
+            }
+        }
+        return out
+    }
+
+    fun clearOutbox(c: Context) {
+        prefs(c).edit().remove(OUTBOX).apply()
+    }
+
+    /** آیا تغییرات محلیِ آپلودنشده وجود دارد؟ */
+    fun hasPending(c: Context): Boolean = loadOutbox(c).length() > 0
 
     // ───────────────────────── هسته HTTP ─────────────────────────
 
@@ -208,30 +297,65 @@ object Sync {
 
     // ───────────────────────── سناریوها ─────────────────────────
 
-    /** اجرای اسپلش: آپلود اگر تغییر محلی هست، وگرنه بازیابی اگر گیت‌هاب جدیدتر است */
+    /**
+     * اجرای اسپلش: همگام‌سازی هوشمند
+     *  - تمیز + آنلاین جدیدتر → دریافت
+     *  - کثیف + آنلاین قدیمی‌تر → آپلود
+     *  - کثیف + آنلاین جدیدتر → دریافت + اعمال تغییرات محلی + آپلود (ادغام)
+     */
     fun syncOnStart(c: Context): String {
         val tk = token(c)
         if (tk.isEmpty()) return "آماده ✨"
         if (!busy.compareAndSet(false, true)) return "در حال همگام‌سازی..."
         try {
             val repo = ensureRepo(tk)
-            if (isDirty(c)) {
+            val dirty = isDirty(c)
+            val rt = remoteTime(tk, repo)
+
+            // دادهٔ تمیز: فقط اگر آنلاین جدیدتر است دریافت می‌کنیم
+            if (!dirty) {
+                if (rt > lastSync(c) + TOL) {
+                    synchronized(lock) {
+                        if (splashDone) return "✓"
+                        val bytes = download(tk, repo) ?: return "روی گیت‌هاب نسخه‌ای نیست"
+                        if (!Db.restoreFrom(bytes)) return "⚠️ فایل بکاپ نامعتبر است"
+                    }
+                    clearOutbox(c)
+                    setLastSync(c, System.currentTimeMillis())
+                    return "📥 آخرین نسخه دریافت شد"
+                }
+                return "✓ همگام‌شده"
+            }
+
+            // تغییرات محلی موجود
+            if (rt > lastSync(c) + TOL) {
+                // آنلاین هم جدیدتر است → ادغام
+                synchronized(lock) {
+                    if (splashDone) return "✓"
+                    val bytes = download(tk, repo)
+                    if (bytes != null && Db.restoreFrom(bytes)) {
+                        if (Db.replayOutbox(outbox(c))) {
+                            push(tk, repo)
+                            clearOutbox(c)
+                            setLastSync(c, System.currentTimeMillis())
+                            return "🔀 همگام‌سازی دوطرفه انجام شد"
+                        }
+                        // ادغام نشد: نسخهٔ آنلاین می‌ماند، تغییرات محلی برای دفعهٔ بعد حفظ می‌شود
+                        return "⚠️ ادغام ناموفق بود؛ بعداً دوباره تلاش کن"
+                    }
+                }
+                // فایل آنلاین نیست یا نامعتبر است → آپلود نسخهٔ محلی
                 push(tk, repo)
+                clearOutbox(c)
                 setLastSync(c, System.currentTimeMillis())
                 return "📤 نسخه آپلود شد"
             }
-            val rt = remoteTime(tk, repo)
-            if (rt == 0L) return "روی گیت‌هاب نسخه‌ای نیست"
-            if (rt > lastSync(c) + TOL) {
-                synchronized(lock) {
-                    if (splashDone) return "✓"
-                    val bytes = download(tk, repo) ?: return "⚠️ فایلی روی گیت‌هاب نیست"
-                    if (!Db.restoreFrom(bytes)) return "⚠️ فایل بکاپ نامعتبر است"
-                    setLastSync(c, System.currentTimeMillis())
-                }
-                return "📥 آخرین نسخه دریافت شد"
-            }
-            return "✓ همگام‌شده"
+
+            // آنلاین قدیمی‌تر است → آپلود ساده
+            push(tk, repo)
+            clearOutbox(c)
+            setLastSync(c, System.currentTimeMillis())
+            return "📤 نسخه آپلود شد"
         } finally {
             busy.set(false)
         }
@@ -240,11 +364,12 @@ object Sync {
     /** آپلود دستی از تنظیمات — بلاک می‌کند، بیرون thread صدا بزن */
     fun pushNow(c: Context): String {
         val tk = token(c)
-        if (tk.isEmpty()) return "توکن تنظیم نشده ⚙️"
+        if (tk.isEmpty()) return "ابتدا وارد شو ⚙️"
         if (!busy.compareAndSet(false, true)) return "همگام‌سازی در جریان است..."
         try {
             val repo = ensureRepo(tk)
             push(tk, repo)
+            clearOutbox(c)
             setLastSync(c, System.currentTimeMillis())
             return "📤 آپلود شد ✓"
         } finally {
@@ -259,13 +384,14 @@ object Sync {
      */
     fun pullNow(c: Context, force: Boolean): String {
         val tk = token(c)
-        if (tk.isEmpty()) return "توکن تنظیم نشده ⚙️"
+        if (tk.isEmpty()) return "ابتدا وارد شو ⚙️"
         if (!busy.compareAndSet(false, true)) return "همگام‌سازی در جریان است..."
         try {
             if (!force && isDirty(c)) return "تغییرات آپلودنشده داری — اول آپلود کن"
             val repo = ensureRepo(tk)
             val bytes = download(tk, repo) ?: return "روی گیت‌هاب نسخه‌ای نیست"
             if (!Db.restoreFrom(bytes)) return "⚠️ فایل بکاپ نامعتبر است"
+            clearOutbox(c)
             setLastSync(c, System.currentTimeMillis())
             return "📥 بازیابی شد ✓"
         } finally {

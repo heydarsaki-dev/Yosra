@@ -24,10 +24,10 @@ class BarChartView @JvmOverloads constructor(
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rect = RectF()
-    private val green = 0xFF059669.toInt()
-    private val red = 0xFFE11D48.toInt()
-    private val gray = 0xFF9AA0BC.toInt()
-    private val light = 0xFFEEF0F8.toInt()
+    private val green = T.green
+    private val red = T.red
+    private val gray = T.gray
+    private val light = T.track
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)

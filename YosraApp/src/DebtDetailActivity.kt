@@ -11,7 +11,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 
-class DebtDetailActivity : Activity() {
+class DebtDetailActivity : BaseActivity() {
 
     private var debtId = -1L
     private var debt: Db.Debt? = null
@@ -51,11 +51,11 @@ class DebtDetailActivity : Activity() {
         findViewById<TextView>(R.id.d_left).text = U.money(d.total - paidAmt) + " تومان"
         findViewById<TextView>(R.id.d_sub).text = U.rich(
             Triple("ماهی ", 0, false),
-            Triple(U.money(d.monthly), 0xFF6C5CE7.toInt(), true),
+            Triple(U.money(d.monthly), T.primary, true),
             Triple(" تومان   ·   ", 0, false),
-            Triple(U.fa(d.months.toString()), 0xFF6C5CE7.toInt(), true),
+            Triple(U.fa(d.months.toString()), T.primary, true),
             Triple(" قسط   ·   از ", 0, false),
-            Triple("${U.monthName(d.startM)} ${U.fa(d.startY.toString())}", 0xFF6C5CE7.toInt(), true)
+            Triple("${U.monthName(d.startM)} ${U.fa(d.startY.toString())}", T.primary, true)
         )
 
         val box = findViewById<LinearLayout>(R.id.inst_box)
@@ -75,12 +75,12 @@ class DebtDetailActivity : Activity() {
             if (isPaid) {
                 st.text = "✓ پرداخت شد"
                 st.setBackgroundResource(R.drawable.chip_paid)
-                st.setTextColor(0xFFFFFFFF.toInt())
+                st.setTextColor(T.onBrand)
                 st.setOnClickListener { confirmCancel(idx, paidMap[idx] ?: 0L) }
             } else {
                 st.text = "💵 پرداخت"
                 st.setBackgroundResource(R.drawable.chip_pay)
-                st.setTextColor(0xFFFFFFFF.toInt())
+                st.setTextColor(T.onBrand)
                 st.setOnClickListener { confirmPay(idx, amount, monthName) }
             }
             box.addView(v)

@@ -17,7 +17,7 @@ import android.widget.TextView
 import android.widget.Toast
 import java.util.Calendar
 
-class AddTransactionActivity : Activity() {
+class AddTransactionActivity : BaseActivity() {
 
     private var type = 1
     private var memberSel = -1L
@@ -139,7 +139,7 @@ class AddTransactionActivity : Activity() {
         title.text = "ساعت و دقیقه 🕐"
         title.gravity = Gravity.CENTER
         title.textSize = 16f
-        title.setTextColor(0xFF1A1B2E.toInt())
+        title.setTextColor(T.text)
         root.addView(title)
 
         val hourChips = ArrayList<TextView>()
@@ -149,7 +149,7 @@ class AddTransactionActivity : Activity() {
 
         fun paint(c: TextView, on: Boolean) {
             c.setBackgroundResource(if (on) R.drawable.circle_on else R.drawable.circle)
-            c.setTextColor(if (on) 0xFF6C5CE7.toInt() else 0xFF6B7194.toInt())
+            c.setTextColor(if (on) T.primary else T.text2)
         }
 
         fun repaint() {
@@ -161,7 +161,7 @@ class AddTransactionActivity : Activity() {
             val lbl = TextView(this)
             lbl.text = label
             lbl.textSize = 13f
-            lbl.setTextColor(0xFF6B7194.toInt())
+            lbl.setTextColor(T.text2)
             lbl.setPadding(0, U.dp(this, 14f), 0, U.dp(this, 6f))
             root.addView(lbl)
 
@@ -241,12 +241,12 @@ class AddTransactionActivity : Activity() {
     private fun setOn(id: Int, on: Boolean, color: Int) {
         val v = findViewById<TextView>(id)
         v.setBackgroundResource(if (on) R.drawable.chip_on else R.drawable.chip)
-        v.setTextColor(if (on) color else 0xFF6B7194.toInt())
+        v.setTextColor(if (on) color else T.text2)
     }
 
     private fun restyleType() {
-        setOn(R.id.btn_type_out, type == 0, 0xFFE11D48.toInt())
-        setOn(R.id.btn_type_in, type == 1, 0xFF059669.toInt())
+        setOn(R.id.btn_type_out, type == 0, T.red)
+        setOn(R.id.btn_type_in, type == 1, T.green)
     }
 
     private fun dateDialog() {
@@ -266,18 +266,18 @@ class AddTransactionActivity : Activity() {
         val btnPrev = TextView(this)
         btnPrev.text = "‹ قبلی"
         btnPrev.setBackgroundResource(R.drawable.btn_soft)
-        btnPrev.setTextColor(0xFF6C5CE7.toInt())
+        btnPrev.setTextColor(T.primary)
         btnPrev.textSize = 13f
         btnPrev.setPadding(U.dp(this, 14f), U.dp(this, 7f), U.dp(this, 14f), U.dp(this, 7f))
         val tvM = TextView(this)
         tvM.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         tvM.gravity = Gravity.CENTER
         tvM.textSize = 15f
-        tvM.setTextColor(0xFF1A1B2E.toInt())
+        tvM.setTextColor(T.text)
         val btnNext = TextView(this)
         btnNext.text = "بعدی ›"
         btnNext.setBackgroundResource(R.drawable.btn_soft)
-        btnNext.setTextColor(0xFF6C5CE7.toInt())
+        btnNext.setTextColor(T.primary)
         btnNext.textSize = 13f
         btnNext.setPadding(U.dp(this, 14f), U.dp(this, 7f), U.dp(this, 14f), U.dp(this, 7f))
         nav.addView(btnPrev)
@@ -295,7 +295,7 @@ class AddTransactionActivity : Activity() {
             t.text = d
             t.gravity = Gravity.CENTER
             t.textSize = 12f
-            t.setTextColor(0xFF9AA0BC.toInt())
+            t.setTextColor(T.gray)
             t.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             wh.addView(t)
         }
@@ -317,7 +317,7 @@ class AddTransactionActivity : Activity() {
         btnToday.text = "امروز"
         btnToday.gravity = Gravity.CENTER
         btnToday.setBackgroundResource(R.drawable.chip)
-        btnToday.setTextColor(0xFF6C5CE7.toInt())
+        btnToday.setTextColor(T.primary)
         btnToday.textSize = 13f
         btnToday.setPadding(U.dp(this, 18f), U.dp(this, 14f), U.dp(this, 18f), U.dp(this, 14f))
         val btnOk = TextView(this)
@@ -363,13 +363,13 @@ class AddTransactionActivity : Activity() {
                         when {
                             isSel -> {
                                 tv.setBackgroundResource(R.drawable.circle_on)
-                                tv.setTextColor(0xFF6C5CE7.toInt())
+                                tv.setTextColor(T.primary)
                             }
                             isToday -> {
                                 tv.setBackgroundResource(R.drawable.circle)
-                                tv.setTextColor(0xFF6C5CE7.toInt())
+                                tv.setTextColor(T.primary)
                             }
-                            else -> tv.setTextColor(0xFF1A1B2E.toInt())
+                            else -> tv.setTextColor(T.text)
                         }
                         tv.setOnClickListener {
                             pd = day
@@ -435,7 +435,7 @@ class AddTransactionActivity : Activity() {
                     val mv = memberBox.getChildAt(i) as TextView
                     val sel = mv.tag == m.id
                     mv.setBackgroundResource(if (sel) R.drawable.chip_on else R.drawable.chip)
-                    mv.setTextColor(if (sel) 0xFF6C5CE7.toInt() else 0xFF6B7194.toInt())
+                    mv.setTextColor(if (sel) T.primary else T.text2)
                 }
             }
             memberBox.addView(t)
@@ -456,14 +456,14 @@ class AddTransactionActivity : Activity() {
                     val cv = catBox.getChildAt(i) as TextView
                     val sel = cv.tag == c.id
                     cv.setBackgroundResource(if (sel) R.drawable.chip_on else R.drawable.chip)
-                    cv.setTextColor(if (sel) 0xFF6C5CE7.toInt() else 0xFF6B7194.toInt())
+                    cv.setTextColor(if (sel) T.primary else T.text2)
                 }
             }
             catBox.addView(t)
         }
         if (cats.isEmpty()) {
             val t = chip("از تنظیمات دسته اضافه کن ⚙️", false)
-            t.setTextColor(0xFFE11D48.toInt())
+            t.setTextColor(T.red)
             catBox.addView(t)
         }
         U.applyFont(catBox)
@@ -475,7 +475,7 @@ class AddTransactionActivity : Activity() {
         t.textSize = 13f
         t.setPadding(U.dp(this, 16f), U.dp(this, 9f), U.dp(this, 16f), U.dp(this, 9f))
         t.setBackgroundResource(if (on) R.drawable.chip_on else R.drawable.chip)
-        t.setTextColor(if (on) 0xFF6C5CE7.toInt() else 0xFF6B7194.toInt())
+        t.setTextColor(if (on) T.primary else T.text2)
         val lp = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
         )

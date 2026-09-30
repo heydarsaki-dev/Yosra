@@ -12,7 +12,7 @@ import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
 
-class TransactionsActivity : Activity() {
+class TransactionsActivity : BaseActivity() {
 
     private var filter = 0
     private var rows = mutableListOf<Db.Trans>()
@@ -114,15 +114,15 @@ class TransactionsActivity : Activity() {
     }
 
     private fun paintChips() {
-        paint(R.id.f_all, filter == 0, 0xFF6C5CE7.toInt())
-        paint(R.id.f_in, filter == 1, 0xFF059669.toInt())
-        paint(R.id.f_out, filter == 2, 0xFFE11D48.toInt())
+        paint(R.id.f_all, filter == 0, T.primary)
+        paint(R.id.f_in, filter == 1, T.green)
+        paint(R.id.f_out, filter == 2, T.red)
     }
 
     private fun paint(id: Int, on: Boolean, color: Int) {
         val v = findViewById<TextView>(id)
         v.setBackgroundResource(if (on) R.drawable.chip_on else R.drawable.chip)
-        v.setTextColor(if (on) color else 0xFF6B7194.toInt())
+        v.setTextColor(if (on) color else T.text2)
     }
 
     override fun onResume() {

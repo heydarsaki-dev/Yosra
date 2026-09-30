@@ -60,7 +60,7 @@
                             android:layout_marginTop="2dp"
                         android:text="به یسرا خوش اومدی 🌸"
                         android:textSize="13sp"
-                        android:textColor="#C9C2FF"/>
+                        android:textColor="#DDD6FF"/>
                     </LinearLayout>
 
                     <ImageView

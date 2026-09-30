@@ -7,7 +7,7 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 
-class ReportsActivity : Activity() {
+class ReportsActivity : BaseActivity() {
 
     private var dayMode = false
     private var dayTs = System.currentTimeMillis()
@@ -64,10 +64,10 @@ class ReportsActivity : Activity() {
     }
 
     private fun paintReportChips() {
-        setChip(R.id.donut_chip_out, donutType == 0, 0xFFE11D48.toInt())
-        setChip(R.id.donut_chip_in, donutType == 1, 0xFF059669.toInt())
-        setChip(R.id.member_chip_out, memberType == 0, 0xFFE11D48.toInt())
-        setChip(R.id.member_chip_in, memberType == 1, 0xFF059669.toInt())
+        setChip(R.id.donut_chip_out, donutType == 0, T.red)
+        setChip(R.id.donut_chip_in, donutType == 1, T.green)
+        setChip(R.id.member_chip_out, memberType == 0, T.red)
+        setChip(R.id.member_chip_in, memberType == 1, T.green)
         findViewById<TextView>(R.id.donut_title).text =
             (if (donutType == 0) "خرج" else "درآمد") + " به تفکیک دسته 🍩"
         findViewById<TextView>(R.id.member_title).text =
@@ -75,14 +75,14 @@ class ReportsActivity : Activity() {
     }
 
     private fun paintModes() {
-        setChip(R.id.r_mode_day, dayMode, 0xFF6C5CE7.toInt())
-        setChip(R.id.r_mode_month, !dayMode, 0xFF6C5CE7.toInt())
+        setChip(R.id.r_mode_day, dayMode, T.primary)
+        setChip(R.id.r_mode_month, !dayMode, T.primary)
     }
 
     private fun setChip(id: Int, on: Boolean, color: Int) {
         val v = findViewById<TextView>(id)
         v.setBackgroundResource(if (on) R.drawable.chip_on else R.drawable.chip)
-        v.setTextColor(if (on) color else 0xFF6B7194.toInt())
+        v.setTextColor(if (on) color else T.text2)
     }
 
     private fun canNext(): Boolean {
@@ -137,7 +137,7 @@ class ReportsActivity : Activity() {
         findViewById<TextView>(R.id.r_balance).text = U.money(pIn - pOut) + " تومان"
         findViewById<TextView>(R.id.r_count).text = U.rich(
             Triple("📊 ", 0, false),
-            Triple(U.fa(period.size.toString()), 0xFF6C5CE7.toInt(), true),
+            Triple(U.fa(period.size.toString()), T.primary, true),
             Triple(if (dayMode) " تراکنش در این روز" else " تراکنش در این ماه", 0, false)
         )
 
@@ -187,7 +187,7 @@ class ReportsActivity : Activity() {
         for (i in top.indices) {
             slices.add(DonutChartView.Slice(top[i].second, palette[i % palette.size]))
         }
-        if (rest > 0) slices.add(DonutChartView.Slice(rest, 0xFF9AA0BC.toInt()))
+        if (rest > 0) slices.add(DonutChartView.Slice(rest, T.gray))
 
         findViewById<DonutChartView>(R.id.donut_view).setData(
             slices,
@@ -206,7 +206,7 @@ class ReportsActivity : Activity() {
                 palette[i % palette.size]
             )
         }
-        if (rest > 0) addBar(catBox, "سایر", rest, top.firstOrNull()?.second ?: 1L, 0xFF9AA0BC.toInt())
+        if (rest > 0) addBar(catBox, "سایر", rest, top.firstOrNull()?.second ?: 1L, T.gray)
         val empty = findViewById<TextView>(R.id.cat_empty)
         empty.text = if (donutType == 0) "هنوز خرجی ثبت نشده" else "هنوز درآمدی ثبت نشده"
         empty.visibility = if (byCat.isEmpty()) View.VISIBLE else View.GONE

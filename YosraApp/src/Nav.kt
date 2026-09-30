@@ -14,8 +14,8 @@ object Nav {
         U.rtl(a)
         U.applyFont(a.findViewById(android.R.id.content))
 
-        val purple = 0xFF6C5CE7.toInt()
-        val gray = 0xFF9AA0BC.toInt()
+        val purple = T.primary
+        val gray = T.gray
 
         val boxes = intArrayOf(R.id.nav_home, R.id.nav_trans, R.id.nav_reports, R.id.nav_settings)
         val icons = intArrayOf(R.id.nav_home_ic, R.id.nav_trans_ic, R.id.nav_reports_ic, R.id.nav_settings_ic)

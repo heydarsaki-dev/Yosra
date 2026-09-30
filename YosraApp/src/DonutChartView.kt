@@ -26,9 +26,9 @@ class DonutChartView @JvmOverloads constructor(
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rect = RectF()
-    private val grayRing = 0xFFEEF0F8.toInt()
-    private val dark = 0xFF1A1B2E.toInt()
-    private val textGray = 0xFF6B7194.toInt()
+    private val grayRing = T.track
+    private val dark = T.text
+    private val textGray = T.text2
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
