@@ -13,6 +13,9 @@ import android.widget.TextView
  */
 class LoginActivity : BaseActivity() {
 
+    // خودش syncOnStart را می‌زند؛ دریافت اضافی در onResume لازم نیست
+    override fun allowBgSync(): Boolean = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)

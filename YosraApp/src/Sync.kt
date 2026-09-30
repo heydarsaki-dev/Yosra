@@ -2,6 +2,8 @@ package ir.yosra.app
 
 import android.content.ContentValues
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Base64
 import org.json.JSONArray
 import org.json.JSONObject
@@ -29,6 +31,9 @@ object Sync {
     private const val REPO = "yosra-backup"
     private const val FILE = "yosra.db"
     private const val TOL = 60_000L // تلورانس ساعت سرور
+    // تلورانس کوچکتر برای onResume: کافی است جلوی دریافت نسخه‌ای را که خودمان
+    // همین الان آپلود کرده‌ایم بگیرد، ولی تغییرات تازهٔ وب را سریع دریافت کنیم
+    private const val RESUME_TOL = 5_000L
     private const val OUTBOX = "outbox"
     private const val OUTBOX_CAP = 300
 
@@ -359,6 +364,52 @@ object Sync {
         } finally {
             busy.set(false)
         }
+    }
+
+    /**
+     * همگام‌سازی هنگام برگشتن اپ به پیش‌زمینه (onResume).
+     *
+     * برخلاف syncOnStart، پس از تمام‌شدن اسپلش هم اجرا می‌شود تا تغییراتی که
+     * از طرف دیگر (مثلاً داشبورد وب) روی گیت‌هاب گذاشته شده بدون نیاز به
+     * باز کردن دوبارهٔ اپ دریافت شوند:
+     *  - آنلاین قدیمی‌تر یا برابر      → هیچ کاری نمی‌کند
+     *  - تمیز + آنلاین جدیدتر        → دریافت و جایگزینی
+     *  - تغییر محلی + آنلاین جدیدتر  → دریافت + اعمال تغییرات محلی (outbox) + آپلود
+     *
+     * @param onDone روی thread اصلی صدا زده می‌شود؛ آرگومان true است اگر دیتابیس
+     *               تغییر کرده و صفحه باید دوباره رسم شود.
+     * @return true اگر همگام‌سازی در پس‌زمینه شروع شد
+     */
+    fun syncOnResume(c: Context, onDone: (refresh: Boolean) -> Unit): Boolean {
+        val tk = token(c)
+        if (tk.isEmpty()) { onDone(false); return false }
+        if (!busy.compareAndSet(false, true)) { onDone(false); return false }
+        Thread {
+            var refresh = false
+            try {
+                val repo = ensureRepo(tk)
+                val dirty = isDirty(c)
+                val rt = remoteTime(tk, repo)
+                if (rt > lastSync(c) + RESUME_TOL) {
+                    val bytes = download(tk, repo)
+                    if (bytes != null && Db.restoreFrom(bytes)) {
+                        if (dirty) {
+                            // تغییرات محلی روی نسخهٔ آنلاین اعمال می‌شود تا گم نشوند
+                            Db.replayOutbox(outbox(c))
+                            push(tk, repo)
+                        }
+                        clearOutbox(c)
+                        setLastSync(c, System.currentTimeMillis())
+                        refresh = true
+                    }
+                }
+            } catch (_: Exception) {
+            } finally {
+                busy.set(false)
+                Handler(Looper.getMainLooper()).post { onDone(refresh) }
+            }
+        }.start()
+        return true
     }
 
     /** آپلود دستی از تنظیمات — بلاک می‌کند، بیرون thread صدا بزن */

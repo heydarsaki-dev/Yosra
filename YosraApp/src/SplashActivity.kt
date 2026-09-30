@@ -13,6 +13,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class SplashActivity : BaseActivity() {
 
+    // این صفحه خودش syncOnStart را انجام می‌دهد
+    override fun allowBgSync(): Boolean = false
+
     private val done = AtomicBoolean(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {

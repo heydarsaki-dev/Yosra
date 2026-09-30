@@ -19,6 +19,9 @@ import java.util.Calendar
 
 class AddTransactionActivity : BaseActivity() {
 
+    // ورودی‌های کاربر در حافظهٔ این صفحه است؛ recreate نباید آن‌ها را از بین ببرد
+    override fun allowBgSync(): Boolean = false
+
     private var type = 1
     private var memberSel = -1L
     private var catSel = -1L

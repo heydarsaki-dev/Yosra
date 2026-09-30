@@ -28,4 +28,20 @@ open class BaseActivity : Activity() {
         super.onCreate(savedInstanceState)
         T.sync(this)
     }
+
+    /**
+     * آیا هنگام برگشتن به پیش‌زمینه باید از گیت‌هاب دریافت شود؟
+     * صفحاتی که ورودی کاربر را در حافظه دارند (فرم ثبت تراکنش) یا خودشان
+     * همگام‌سازی را انجام می‌دهند (اسپلش/ورود) باید آن را false کنند.
+     */
+    open fun allowBgSync(): Boolean = true
+
+    override fun onResume() {
+        super.onResume()
+        if (allowBgSync()) {
+            Sync.syncOnResume(this) { refresh ->
+                if (refresh && !isFinishing && !isDestroyed) recreate()
+            }
+        }
+    }
 }
