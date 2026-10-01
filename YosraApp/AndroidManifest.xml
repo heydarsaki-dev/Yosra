@@ -3,6 +3,7 @@
     package="ir.yosra.app">
 
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
 
     <application
         android:name=".YosraApp"
@@ -37,6 +38,10 @@
             android:theme="@style/AddTheme"
             android:label=" "
             android:windowSoftInputMode="adjustResize"
+            android:exported="false"/>
+
+        <service
+            android:name=".SyncService"
             android:exported="false"/>
     </application>
 </manifest>

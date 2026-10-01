@@ -32,6 +32,7 @@ class SettingsActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         Db.init(this)
         setContentView(R.layout.activity_settings)
+        enablePullToRefresh()
         findViewById<View>(R.id.btn_add_member).setOnClickListener { memberDialog() }
         findViewById<View>(R.id.btn_add_cat).setOnClickListener { catDialog() }
         findViewById<View>(R.id.btn_cats_in).setOnClickListener { catType = 1; render() }
@@ -81,7 +82,7 @@ class SettingsActivity : BaseActivity() {
     private fun syncPush() {
         U.toast(this, "در حال آپلود...")
         Thread {
-            val msg = try { Sync.pushNow(applicationContext) } catch (e: Exception) { "⚠️ ${e.message}" }
+            val msg = try { Sync.pushNow(applicationContext) } catch (e: Exception) { Sync.friendlyMsg(e) }
             runOnUiThread {
                 U.toast(this, msg, true)
                 try { renderSyncStatus(); render() } catch (_: Exception) {}
@@ -93,7 +94,7 @@ class SettingsActivity : BaseActivity() {
         val go = { force: Boolean ->
             U.toast(this, "در حال دریافت...")
             Thread {
-                val msg = try { Sync.pullNow(applicationContext, force) } catch (e: Exception) { "⚠️ ${e.message}" }
+                val msg = try { Sync.pullNow(applicationContext, force) } catch (e: Exception) { Sync.friendlyMsg(e) }
                 runOnUiThread {
                     U.toast(this, msg, true)
                     try { renderSyncStatus(); render() } catch (_: Exception) {}
@@ -102,7 +103,7 @@ class SettingsActivity : BaseActivity() {
         }
         // اگر تغییرات آپلودنشده محلی هست، اول هشدار بده
         Thread {
-            val msg = try { Sync.pullNow(applicationContext, false) } catch (e: Exception) { "⚠️ ${e.message}" }
+            val msg = try { Sync.pullNow(applicationContext, false) } catch (e: Exception) { Sync.friendlyMsg(e) }
             val blocked = msg.startsWith("تغییرات")
             runOnUiThread {
                 if (!blocked) {

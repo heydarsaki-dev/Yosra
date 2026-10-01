@@ -36,6 +36,23 @@ open class BaseActivity : Activity() {
      */
     open fun allowBgSync(): Boolean = true
 
+    /**
+     * نصب pull-to-refresh روی صفحه — کشیدن از بالای صفحه، سینک دیتابیس
+     * را اجرا می‌کند و نتیجه را با توست رنگی اعلام می‌کند.
+     * در onCreate بعد از setContentView صدا بزن.
+     */
+    protected fun enablePullToRefresh() {
+        var ptr: Ptr? = null
+        ptr = Ptr.attach(this) {
+            Sync.refreshNow(this) { changed, msg ->
+                ptr?.finish()
+                val err = msg.startsWith("⚠️") || msg.startsWith("⏳") || msg.startsWith("ابتدا")
+                U.toast(this, msg, false, if (err) U.TOAST_ERR else U.TOAST_OK)
+                if (changed && !isFinishing && !isDestroyed) recreate()
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         if (allowBgSync()) {

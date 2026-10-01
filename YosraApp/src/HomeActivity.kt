@@ -15,6 +15,7 @@ class HomeActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         Db.init(this)
         setContentView(R.layout.activity_home)
+        enablePullToRefresh()
 
         val hbox = findViewById<LinearLayout>(R.id.latest_box)
         homeDrag = RowDrag(hbox) { from, to ->

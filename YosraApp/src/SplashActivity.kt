@@ -31,7 +31,7 @@ class SplashActivity : BaseActivity() {
                 val msg = try {
                     Sync.syncOnStart(applicationContext)
                 } catch (e: Exception) {
-                    "⚠️ ${e.message ?: "خطای شبکه"}"
+                    Sync.friendlyMsg(e)
                 }
                 runOnUiThread { if (!done.get()) status.text = msg }
             }.start()

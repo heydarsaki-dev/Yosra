@@ -38,6 +38,7 @@ class TransactionsActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         Db.init(this)
         setContentView(R.layout.activity_transactions)
+        enablePullToRefresh()
 
         list = findViewById(R.id.list)
         list.adapter = adapter

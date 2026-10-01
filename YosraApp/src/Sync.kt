@@ -9,9 +9,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.text.SimpleDateFormat
-import java.util.Locale
-import java.util.TimeZone
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -30,14 +27,16 @@ object Sync {
 
     private const val REPO = "yosra-backup"
     private const val FILE = "yosra.db"
-    private const val TOL = 60_000L // تلورانس ساعت سرور
-    // تلورانس کوچکتر برای onResume: کافی است جلوی دریافت نسخه‌ای را که خودمان
-    // همین الان آپلود کرده‌ایم بگیرد، ولی تغییرات تازهٔ وب را سریع دریافت کنیم
-    private const val RESUME_TOL = 5_000L
     private const val OUTBOX = "outbox"
     private const val OUTBOX_CAP = 300
 
     private val busy = AtomicBoolean(false)
+    private val pushPending = AtomicBoolean(false)
+    private val pushWorker = AtomicBoolean(false)
+    private const val BUSY_MSG = "⏳ همگام‌سازی در جریان است..."
+
+    /** آیا سینکی در جریان است؟ (برای نگهبان SyncService) */
+    fun isSyncActive(): Boolean = pushWorker.get() || pushPending.get() || busy.get()
 
     /** وقتی اسپلش رفت جلو، بازیابی دیرهنگام متوقف می‌شود تا زیر دست اپ نپرد */
     private val lock = Any()
@@ -57,6 +56,31 @@ object Sync {
      */
     private const val ENC_TOKEN = "ty9APWyqSgyB8AGuIcg48Uq9EoTKT5osSTGcLov8ilJU0C4THMkxQ4UNmeJFoEN3S/EsKFqni0s="
 
+    /**
+     * سکرت realtime رمزنگاری‌شده داخل سورس — همان ساختار ENC_TOKEN
+     * (base64(salt(16) || xor(secret, pbkdf2))) با همان رمز کاربر.
+     */
+    private const val ENC_RT_SECRET = "VQAKEvGN7Oa5Qh6IpBgr9Dmupo+7/sGMkvJY32ecdNRR7Aa3D5WeIv2TBMM7N3QHRpLyq9mSQhmc8xzCUG5Paany4jgt9vuX1lfgh3dmEmA="
+
+    /** باز کردن سکرت realtime و ذخیره در prefs؛ خطا → login خراب نمی‌شود */
+    private fun unlockRt(c: Context, password: String) {
+        try {
+            val raw = Base64.decode(ENC_RT_SECRET, Base64.NO_WRAP)
+            if (raw.size < 17) return
+            val salt = raw.copyOfRange(0, 16)
+            val ct = raw.copyOfRange(16, raw.size)
+            val spec = javax.crypto.spec.PBEKeySpec(password.toCharArray(), salt, 20000, ct.size * 8)
+            val ks = javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1")
+                .generateSecret(spec).encoded
+            val out = ByteArray(ct.size) { (ct[it].toInt() xor ks[it].toInt()).toByte() }
+            val sec = String(out, Charsets.UTF_8)
+            if (sec.length == 64 && sec.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }) {
+                prefs(c).edit().putString("rt_secret", sec).apply()
+            }
+        } catch (_: Exception) {
+        }
+    }
+
     /** با رمز کاربر توکن داخل سورس را باز می‌کند؛ رمز اشتباه → false */
     fun unlockWithPassword(c: Context, password: String): Boolean {
         if (password.isEmpty()) return false
@@ -72,6 +96,10 @@ object Sync {
             val token = String(out, Charsets.UTF_8)
             if (!token.startsWith("ghp_") && !token.startsWith("github_pat_")) return false
             saveToken(c, token)
+            try {
+                unlockRt(c, password)
+            } catch (_: Exception) {
+            }
             true
         } catch (_: Exception) {
             false
@@ -87,6 +115,20 @@ object Sync {
     private fun setLastSync(c: Context, t: Long) {
         prefs(c).edit().putLong("lastSync", t).apply()
     }
+
+    /**
+     * sha آخرین نسخهٔ آنلاینی که دیده‌ایم — شرط pull با همین مقایسه می‌شود،
+     * نه با زمان: زمان کامیت دقت ثانیه دارد و ساعت گوشی با ساعت گیت‌هاب
+     * ممکن است اختلاف داشته باشد؛ با مقایسهٔ زمانی، کامیتِ تازهٔ وب بین دو
+     * سینکِ اپ برای همیشه نادیده گرفته می‌شد (درست مثل باگی که وب داشت).
+     */
+    private fun lastRemoteSha(c: Context): String = prefs(c).getString("remoteSha", "") ?: ""
+    private fun setLastRemoteSha(c: Context, sha: String) {
+        if (sha.isNotEmpty()) prefs(c).edit().putString("remoteSha", sha).apply()
+    }
+
+    /** آنلاین چیزی دارد که هنوز ندیده‌ایم؟ */
+    private fun unseenSha(c: Context, sha: String) = sha.isNotEmpty() && sha != lastRemoteSha(c)
 
     fun lastSyncText(c: Context): String {
         val t = lastSync(c)
@@ -187,6 +229,23 @@ object Sync {
     // ───────────────────────── هسته HTTP ─────────────────────────
 
     private fun req(method: String, path: String, body: String? = null, tk: String): Pair<Int, String> {
+        var last: Pair<Int, String>? = null
+        for (attempt in 0..1) {
+            try {
+                val r = doReq(method, path, body, tk)
+                last = r
+                // PUT تکرار نمی‌شود (پاسخ گم‌شده یعنی شاید اعمال شده — تکرار → 409)
+                if (r.first in 200..299 || method == "PUT" || attempt == 1 || !isTransient(r.first, r.second)) return r
+                Thread.sleep(800L)
+            } catch (e: Exception) {
+                if (attempt == 1) throw e
+                Thread.sleep(800L) // قطعی لحظه‌ای وی‌پیِن → یک بار دوباره
+            }
+        }
+        return last ?: (0 to "")
+    }
+
+    private fun doReq(method: String, path: String, body: String? = null, tk: String): Pair<Int, String> {
         val conn = URL("https://api.github.com$path").openConnection() as HttpURLConnection
         conn.requestMethod = method
         conn.connectTimeout = 6000
@@ -207,18 +266,55 @@ object Sync {
     }
 
     private fun errMessage(code: Int, text: String): String {
-        val msg = try { JSONObject(text).optString("message", "") } catch (_: Exception) { "" }
+        val raw = text.trim()
+        val msg = try {
+            val m = JSONObject(text).optString("message", "")
+            if (m.isNotEmpty()) m else raw.take(120)
+        } catch (_: Exception) {
+            // پاسخ غیر-JSON — معمولاً صفحهٔ WAF گیت‌هاب هنگام عوض شدن IP
+            raw.take(120)
+        }
+        val lower = msg.lowercase()
+        val isRate = code == 429 || lower.contains("rate limit") || lower.contains("secondary")
+        val isWaf = lower.contains("malicious") || lower.contains("abuse") || raw.startsWith("<")
         return when {
             code == 401 -> "توکن نامعتبر است ❌"
+            isRate -> "گیت‌هاب موقتاً درخواست‌ها را محدود کرده — چند دقیقه بعد دوباره تلاش کن ⏳"
             code == 403 -> "دسترسی توکن کافی نیست ❌"
             code == 404 -> "ریپو پیدا نشد ❌"
-            msg.isNotEmpty() -> "$msg (کد $code)"
+            isWaf -> "گیت‌هاب درخواست را رد کرد (احتمالاً به‌خاطر عوض شدن ناگهانی وی‌پیِن/IP) — چند لحظه صبر کن و دوباره تلاش کن ⚠️"
+            msg.isNotEmpty() && !msg.startsWith("{") -> "$msg (کد $code)"
             else -> "خطای گیت‌هاب (کد $code)"
         }
     }
 
+    /** پاسخ موقت و قابل‌تکرار: قطعی وی‌پیِن/شبکه، سقف درخواست، ردِ WAF */
+    private fun isTransient(code: Int, text: String): Boolean {
+        if (code == 429) return true
+        val lower = text.lowercase()
+        return lower.contains("malicious") || lower.contains("abuse") ||
+            lower.contains("secondary rate") || lower.contains("rate limit")
+    }
+
+    /** خطای شبکه → پیام فارسی دوستانه (متن خام انگلیسیِ exception نباید دیده شود) */
+    fun friendlyMsg(e: Throwable): String = when (e) {
+        is java.io.IOException -> "⚠️ اتصال به گیت‌هاب برقرار نشد (وی‌پیِن؟) — دوباره تلاش کن ❌"
+        else -> "⚠️ ${e.message ?: "خطا در همگام‌سازی"}"
+    }
+
+    /** کشِ داخل حافظه — هر بار ensureRepo دو درخواست می‌زد؛ کم کردن درخواست
+     *  = کمتر شدن فرصتِ خطا و سقفِ درخواست (مخصوصاً با وی‌پیِن ناپایدار). */
+    @Volatile private var repoCache: Repo? = null
+    @Volatile private var repoCacheToken: String = ""
+    @Volatile private var repoCacheAt: Long = 0L
+
     /** کاربر + ریپو (ساخت در صورت نبود) + شاخه */
     private fun ensureRepo(tk: String): Repo {
+        val hit = repoCache
+        if (hit != null && repoCacheToken == tk &&
+            System.currentTimeMillis() - repoCacheAt < 10 * 60_000L
+        ) return hit
+
         val (c1, t1) = req("GET", "/user", null, tk)
         if (c1 !in 200..299) throw IllegalStateException(errMessage(c1, t1))
         val login = JSONObject(t1).getString("login")
@@ -238,12 +334,16 @@ object Sync {
         } else {
             throw IllegalStateException(errMessage(c2, t2))
         }
-        return Repo(login, branch)
+        val repo = Repo(login, branch)
+        repoCache = repo
+        repoCacheToken = tk
+        repoCacheAt = System.currentTimeMillis()
+        return repo
     }
 
     // ───────────────────────── آپلود ─────────────────────────
 
-    private fun push(tk: String, repo: Repo) {
+    private fun push(c: Context, tk: String, repo: Repo) {
         val baos = java.io.ByteArrayOutputStream()
         Db.backupTo(baos)
         val b64 = Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
@@ -260,25 +360,25 @@ object Sync {
         if (!sha.isNullOrEmpty()) body.put("sha", sha)
         val (c2, t2) = req("PUT", "/repos/${repo.login}/$REPO/contents/$FILE", body.toString(), tk)
         if (c2 !in 200..299) throw IllegalStateException(errMessage(c2, t2))
+        // sha کامیتِ تازه بماند تا pushِ خودمان دوباره «دیده‌نشده» حساب نشود
+        try {
+            setLastRemoteSha(c, JSONObject(t2).getJSONObject("commit").optString("sha", ""))
+        } catch (_: Exception) {
+        }
+        // خبر لحظه‌ای به طرف دیگر — اینجا (داخل خود push) تا هیچ مسیر آپلودی
+        // فراموش نشود (دستی از تنظیمات، خودکار، ادغام و…)
+        Rt.notifyDbChanged()
     }
 
     // ───────────────────────── دانلود ─────────────────────────
 
-    /** زمان آخرین کامیتِ فایل دیتابیس (میلی‌ثانیه) — 0 اگر فایلی نیست */
-    private fun remoteTime(tk: String, repo: Repo): Long {
+    /** sha آخرین کامیتِ فایل دیتابیس — "" اگر فایلی نیست یا خطا آمد */
+    private fun remoteSha(tk: String, repo: Repo): String {
         val (c, t) = req("GET", "/repos/${repo.login}/$REPO/commits?path=$FILE&per_page=1", null, tk)
-        if (c != 200) return 0L
+        if (c != 200) return ""
         val arr = JSONArray(t)
-        if (arr.length() == 0) return 0L
-        val date = arr.getJSONObject(0).getJSONObject("commit")
-            .getJSONObject("committer").getString("date")
-        return try {
-            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
-            sdf.timeZone = TimeZone.getTimeZone("UTC")
-            sdf.parse(date)!!.time
-        } catch (_: Exception) {
-            0L
-        }
+        if (arr.length() == 0) return ""
+        return arr.getJSONObject(0).optString("sha", "")
     }
 
     private fun download(tk: String, repo: Repo): ByteArray? {
@@ -315,15 +415,16 @@ object Sync {
         try {
             val repo = ensureRepo(tk)
             val dirty = isDirty(c)
-            val rt = remoteTime(tk, repo)
+            val sha = remoteSha(tk, repo)
 
-            // دادهٔ تمیز: فقط اگر آنلاین جدیدتر است دریافت می‌کنیم
+            // دادهٔ تمیز: فقط اگر آنلاین چیزی دارد که هنوز ندیده‌ایم دریافت می‌کنیم
             if (!dirty) {
-                if (rt > lastSync(c) + TOL) {
+                if (unseenSha(c, sha)) {
                     synchronized(lock) {
                         if (splashDone) return "✓"
                         val bytes = download(tk, repo) ?: return "روی گیت‌هاب نسخه‌ای نیست"
                         if (!Db.restoreFrom(bytes)) return "⚠️ فایل بکاپ نامعتبر است"
+                        setLastRemoteSha(c, sha)
                     }
                     clearOutbox(c)
                     setLastSync(c, System.currentTimeMillis())
@@ -333,31 +434,39 @@ object Sync {
             }
 
             // تغییرات محلی موجود
-            if (rt > lastSync(c) + TOL) {
-                // آنلاین هم جدیدتر است → ادغام
+            if (unseenSha(c, sha)) {
+                // آنلاین هم چیزی دارد که هنوز ندیده‌ایم → ادغام
                 synchronized(lock) {
                     if (splashDone) return "✓"
                     val bytes = download(tk, repo)
                     if (bytes != null && Db.restoreFrom(bytes)) {
-                        if (Db.replayOutbox(outbox(c))) {
-                            push(tk, repo)
-                            clearOutbox(c)
-                            setLastSync(c, System.currentTimeMillis())
-                            return "🔀 همگام‌سازی دوطرفه انجام شد"
+                        setLastRemoteSha(c, sha)
+                        if (hasPending(c)) {
+                            if (Db.replayOutbox(outbox(c))) {
+                                push(c, tk, repo)
+                                clearOutbox(c)
+                                setLastSync(c, System.currentTimeMillis())
+                                return "🔀 همگام‌سازی دوطرفه انجام شد"
+                            }
+                            // ادغام نشد: نسخهٔ آنلاین می‌ماند، تغییرات محلی برای دفعهٔ بعد حفظ می‌شود
+                            return "⚠️ ادغام ناموفق بود؛ بعداً دوباره تلاش کن"
                         }
-                        // ادغام نشد: نسخهٔ آنلاین می‌ماند، تغییرات محلی برای دفعهٔ بعد حفظ می‌شود
-                        return "⚠️ ادغام ناموفق بود؛ بعداً دوباره تلاش کن"
+                        // چیزی برای ادغام نبود (کثیفیِ بی‌دلیل مثلاً بعد از checkpoint) —
+                        // push بی‌دلیل یعنی کامیت و خبرِ اضافه برای طرف مقابل
+                        clearOutbox(c)
+                        setLastSync(c, System.currentTimeMillis())
+                        return "📥 آخرین نسخه دریافت شد"
                     }
                 }
                 // فایل آنلاین نیست یا نامعتبر است → آپلود نسخهٔ محلی
-                push(tk, repo)
+                push(c, tk, repo)
                 clearOutbox(c)
                 setLastSync(c, System.currentTimeMillis())
                 return "📤 نسخه آپلود شد"
             }
 
-            // آنلاین قدیمی‌تر است → آپلود ساده
-            push(tk, repo)
+            // آنلاین از آخرین باری که دیدیم تغییری نکرده → آپلود ساده
+            push(c, tk, repo)
             clearOutbox(c)
             setLastSync(c, System.currentTimeMillis())
             return "📤 نسخه آپلود شد"
@@ -388,19 +497,24 @@ object Sync {
             var refresh = false
             try {
                 val repo = ensureRepo(tk)
-                val dirty = isDirty(c)
-                val rt = remoteTime(tk, repo)
-                if (rt > lastSync(c) + RESUME_TOL) {
+                val sha = remoteSha(tk, repo)
+                if (unseenSha(c, sha)) {
                     val bytes = download(tk, repo)
                     if (bytes != null && Db.restoreFrom(bytes)) {
-                        if (dirty) {
-                            // تغییرات محلی روی نسخهٔ آنلاین اعمال می‌شود تا گم نشوند
-                            Db.replayOutbox(outbox(c))
-                            push(tk, repo)
+                        setLastRemoteSha(c, sha)
+                        // ادغام باید موفق باشد وگرنه push + clearOutbox تغییرات محلی را گم می‌کند
+                        val applied = !hasPending(c) || Db.replayOutbox(outbox(c))
+                        if (applied && hasPending(c)) {
+                            // تغییرات محلی روی نسخهٔ آنلاین اعمال شد → آپلود ادغام
+                            SyncService.kick(c)
+                            push(c, tk, repo)
                         }
-                        clearOutbox(c)
-                        setLastSync(c, System.currentTimeMillis())
-                        refresh = true
+                        if (applied) {
+                            clearOutbox(c)
+                            setLastSync(c, System.currentTimeMillis())
+                            refresh = true
+                        }
+                        // ادغام ناموفق → outbox برای دفعهٔ بعد می‌ماند
                     }
                 }
             } catch (_: Exception) {
@@ -416,10 +530,12 @@ object Sync {
     fun pushNow(c: Context): String {
         val tk = token(c)
         if (tk.isEmpty()) return "ابتدا وارد شو ⚙️"
-        if (!busy.compareAndSet(false, true)) return "همگام‌سازی در جریان است..."
+        if (!busy.compareAndSet(false, true)) return BUSY_MSG
         try {
+            // نگهبان: اگر حین push اپ به پس‌زمینه رفت، پروسه کشته نشود
+            SyncService.kick(c)
             val repo = ensureRepo(tk)
-            push(tk, repo)
+            push(c, tk, repo)
             clearOutbox(c)
             setLastSync(c, System.currentTimeMillis())
             return "📤 آپلود شد ✓"
@@ -440,8 +556,10 @@ object Sync {
         try {
             if (!force && isDirty(c)) return "تغییرات آپلودنشده داری — اول آپلود کن"
             val repo = ensureRepo(tk)
+            val sha = remoteSha(tk, repo)
             val bytes = download(tk, repo) ?: return "روی گیت‌هاب نسخه‌ای نیست"
             if (!Db.restoreFrom(bytes)) return "⚠️ فایل بکاپ نامعتبر است"
+            setLastRemoteSha(c, sha)
             clearOutbox(c)
             setLastSync(c, System.currentTimeMillis())
             return "📥 بازیابی شد ✓"
@@ -450,14 +568,147 @@ object Sync {
         }
     }
 
-    /** آپلود خودکار هنگام رفتن اپ به پس‌زمینه — اگر تغییری مانده باشد */
-    fun autoPush(c: Context) {
+    /**
+     * آپلود خودکار دیتابیس آنلاین بعد از هر تغییر — در پس‌زمینه.
+     * اگر سینکی در جریان باشد، تا پایانش صبر می‌کند تا آپلود گم نشود؛
+     * تغییراتِ هم‌زمان در یک آپلود ادغام می‌شوند.
+     * بعد از هر آپلود موفق، توست سبز نشان می‌دهد.
+     */
+    fun pushAsync(c: Context) {
         if (token(c).isEmpty()) return
+        pushPending.set(true)
+        if (!pushWorker.compareAndSet(false, true)) return // worker در حال اجراست
         Thread {
             try {
-                pushNow(c)
-            } catch (_: Exception) {
+                var tries = 0
+                while (pushPending.getAndSet(false)) {
+                    if (!hasPending(c)) continue // چیزی برای آپلود نیست
+                    val msg = try {
+                        pushNow(c)
+                    } catch (e: Exception) {
+                        friendlyMsg(e)
+                    }
+                    when {
+                        msg == BUSY_MSG -> { // سینک دیگری در جریان است → کمی بعد دوباره
+                            pushPending.set(true)
+                            tries++
+                            if (tries > 30) {
+                                U.toastOnUi(c, "⚠️ آپلود انجام نشد — بعداً از تنظیمات آپلود کن", true, U.TOAST_ERR)
+                                break
+                            }
+                            try {
+                                Thread.sleep(700)
+                            } catch (_: InterruptedException) {
+                            }
+                        }
+                        msg.contains("✓") -> {
+                            U.toastOnUi(c, "✅ دیتابیس آنلاین به‌روز شد", false, U.TOAST_OK)
+                            tries = 0
+                        }
+                        else -> U.toastOnUi(c, msg, true, U.TOAST_ERR)
+                    }
+                }
+            } finally {
+                pushWorker.set(false)
             }
         }.start()
+    }
+
+    /**
+     * سینک دستی (pull-to-refresh) — دریافت نسخهٔ آنلاین با ادغام تغییرات محلی.
+     * در پس‌زمینه اجرا می‌شود و نتیجه را روی نخ اصلی اعلام می‌کند.
+     */
+    fun refreshNow(c: Context, onDone: (changed: Boolean, msg: String) -> Unit) {
+        val tk = token(c)
+        if (tk.isEmpty()) {
+            Handler(Looper.getMainLooper()).post { onDone(false, "ابتدا وارد شو ⚙️") }
+            return
+        }
+        if (!busy.compareAndSet(false, true)) {
+            Handler(Looper.getMainLooper()).post { onDone(false, BUSY_MSG) }
+            return
+        }
+        Thread {
+            var changed = false
+            var msg = "✓ آخرین نسخه روی دستگاه است"
+            try {
+                val repo = ensureRepo(tk)
+                val dirty = isDirty(c) || hasPending(c)
+                if (dirty) {
+                    // تغییر محلی هست → اول نسخهٔ آنلاین را بگیر و ادغام کن، بعد آپلود
+                    val sha = remoteSha(tk, repo) // خطا → catch بیرونی؛ آپلود انجام نمی‌شود
+                    if (unseenSha(c, sha)) {
+                        val bytes = try {
+                            download(tk, repo)
+                        } catch (_: Exception) {
+                            null
+                        }
+                        val restored = bytes != null && Db.restoreFrom(bytes)
+                        if (restored) {
+                            setLastRemoteSha(c, sha)
+                        }
+                        if (!restored && unseenSha(c, sha)) {
+                            // دانلود نشد ولی آنلاین از آخرین باری که دیدیم عوض شده →
+                            // آپلود کور یعنی گم شدن تغییرات طرف دیگر؛ اصلاً آپلود نکن
+                            msg = "⚠️ دریافت نسخهٔ آنلاین ناموفق بود — دوباره تلاش کن"
+                        } else if (!hasPending(c)) {
+                            // تغییر ثبت‌شده‌ای در کار نبود (کثیفیِ بی‌دلیل مثلاً بعد از
+                            // checkpoint) — push بی‌دلیل یعنی کامیت و خبرِ اضافه
+                            clearOutbox(c)
+                            setLastSync(c, System.currentTimeMillis())
+                            changed = true
+                            msg = "📥 آخرین نسخه دریافت شد"
+                        } else if (Db.replayOutbox(outbox(c))) {
+                            SyncService.kick(c)
+                            push(c, tk, repo)
+                            clearOutbox(c)
+                            setLastSync(c, System.currentTimeMillis())
+                            changed = true
+                            msg = "✅ دیتابیس آنلاین به‌روز شد"
+                        } else {
+                            // ادغام ناموفق → outbox برای دفعهٔ بعد می‌ماند
+                            msg = "⚠️ ادغام ناموفق بود؛ بعداً دوباره تلاش کن"
+                        }
+                    } else if (hasPending(c)) {
+                        // ریموت عوض نشده → فقط تغییرات محلی آپلود شود (بدون دانلودِ بی‌دلیل)
+                        SyncService.kick(c)
+                        push(c, tk, repo)
+                        clearOutbox(c)
+                        setLastSync(c, System.currentTimeMillis())
+                        changed = true
+                        msg = "✅ دیتابیس آنلاین به‌روز شد"
+                    } else {
+                        // فقط کثیفیِ بی‌دلیل → همین که هست همگام است
+                        clearOutbox(c)
+                        setLastSync(c, System.currentTimeMillis())
+                        msg = "✓ آخرین نسخه روی دستگاه است"
+                    }
+                } else {
+                    val sha = remoteSha(tk, repo)
+                    if (unseenSha(c, sha)) {
+                        val bytes = download(tk, repo)
+                        if (bytes != null && Db.restoreFrom(bytes)) {
+                            setLastRemoteSha(c, sha)
+                            clearOutbox(c)
+                            setLastSync(c, System.currentTimeMillis())
+                            changed = true
+                            msg = "📥 آخرین نسخه دریافت شد"
+                        } else {
+                            msg = "⚠️ فایل بکاپ نامعتبر است"
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                msg = friendlyMsg(e)
+            } finally {
+                busy.set(false)
+                Handler(Looper.getMainLooper()).post { onDone(changed, msg) }
+            }
+        }.start()
+    }
+
+    /** آپلود خودکار هنگام رفتن اپ به پس‌زمینه — اگر تغییری مانده باشد */
+    fun autoPush(c: Context) {
+        pushAsync(c)
     }
 }

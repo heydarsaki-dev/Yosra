@@ -27,6 +27,7 @@ class ReportsActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         Db.init(this)
         setContentView(R.layout.activity_reports)
+        enablePullToRefresh()
 
         val now = U.jParts(System.currentTimeMillis())
         monY = now[0]

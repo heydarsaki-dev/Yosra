@@ -128,8 +128,13 @@ object Db {
     // ───────────── ثبت تغییرات محلی (outbox) برای همگام‌سازی دوطرفه ─────────────
     // op: 0=درج، 1=ویرایش، 2=حذف
     private fun log(table: String, key: String, op: Int, cv: ContentValues?) {
+        val ctx = appCtx ?: return
         try {
-            Sync.logChange(appCtx ?: return, table, key, op, cv)
+            Sync.logChange(ctx, table, key, op, cv)
+        } catch (_: Exception) {}
+        // آپلود فوری دیتابیس آنلاین بعد از هر تغییر تراکنش/داده (در پس‌زمینه)
+        try {
+            Sync.pushAsync(ctx)
         } catch (_: Exception) {}
     }
 
@@ -691,8 +696,38 @@ object Db {
         try {
             db.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { it.moveToFirst() }
         } catch (_: Exception) {}
-        val f = java.io.File(db.path)
-        f.inputStream().use { it.copyTo(out) }
+        // قفل انحصاری حین کپی تا write هم‌زمان فایل را پاره نکند —
+        // بکاپِ پاره روی گیت‌هاب می‌رود و وب آن را «بکاپ نامعتبر» اعلام می‌کند
+        var locked = false
+        var tries = 0
+        while (!locked && tries < 3) {
+            try {
+                db.execSQL("BEGIN EXCLUSIVE")
+                locked = true
+            } catch (_: Exception) {
+                tries++
+                try {
+                    Thread.sleep(50)
+                } catch (_: InterruptedException) {
+                    break
+                }
+            }
+        }
+        try {
+            val f = java.io.File(db.path)
+            f.inputStream().use { it.copyTo(out) }
+        } finally {
+            if (locked) {
+                try {
+                    db.execSQL("COMMIT")
+                } catch (_: Exception) {
+                    try {
+                        db.execSQL("ROLLBACK")
+                    } catch (_: Exception) {
+                    }
+                }
+            }
+        }
     }
 
     /** فایل دیتابیس — برای تشخیص تغییرات آپلودنشده */

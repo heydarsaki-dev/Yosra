@@ -26,6 +26,7 @@ class DebtDetailActivity : BaseActivity() {
         if (debt == null) { finish(); return }
 
         findViewById<View>(R.id.btn_back).setOnClickListener { finish() }
+        enablePullToRefresh()
     }
 
     override fun onResume() {

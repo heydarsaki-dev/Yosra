@@ -20,6 +20,7 @@ class InstallmentsActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         Db.init(this)
         setContentView(R.layout.activity_installments)
+        enablePullToRefresh()
 
         findViewById<View>(R.id.btn_back).setOnClickListener { finish() }
         findViewById<View>(R.id.btn_add_inst).setOnClickListener { debtDialog(null) }

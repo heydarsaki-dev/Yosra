@@ -160,8 +160,13 @@ object U {
 
     fun dp(c: Context, v: Float): Int = Math.round(v * c.resources.displayMetrics.density)
 
-    /** توست با استایل اپ — متن سفید کامل روی کارت تیره */
-    fun toast(c: Context, msg: String, long: Boolean = false) {
+    /** رنگ‌های استاندارد توست — هم‌خوان با داشبورد وب */
+    val TOAST_BG = 0xF01A1B2E.toInt() // سرمه‌ای پیش‌فرض
+    val TOAST_OK = 0xE015803D.toInt() // سبز موفقیت
+    val TOAST_ERR = 0xF0C2183F.toInt() // قرمز خطا
+
+    /** توست با استایل اپ — متن سفید کامل روی کارت رنگی */
+    fun toast(c: Context, msg: String, long: Boolean = false, bg: Int = TOAST_BG) {
         loadFont(c)
         val tv = TextView(c)
         tv.text = msg
@@ -172,7 +177,7 @@ object U {
         tv.setPadding(d, dp(c, 12f), d, dp(c, 12f))
         val gd = android.graphics.drawable.GradientDrawable()
         gd.cornerRadius = dp(c, 16f).toFloat()
-        gd.setColor(0xF01A1B2E.toInt())
+        gd.setColor(bg)
         tv.background = gd
         val t = Toast(c)
         t.duration = if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT
@@ -182,6 +187,11 @@ object U {
         )
         t.view = tv
         t.show()
+    }
+
+    /** توست روی نخ اصلی — برای صدا زدن از threadهای پس‌زمینه */
+    fun toastOnUi(c: Context, msg: String, long: Boolean = false, bg: Int = TOAST_BG) {
+        android.os.Handler(android.os.Looper.getMainLooper()).post { toast(c, msg, long, bg) }
     }
 
     var fReg: Typeface? = null
