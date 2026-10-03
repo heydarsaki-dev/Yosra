@@ -68,27 +68,42 @@
 
 ## 🛠 ساخت از سورس
 
-پروژه بدون Gradle و بدون هیچ کتابخانه خارجی ساخته می‌شه — یک اسکریپت شل توی **Termux**:
+پروژه با **Gradle** ساخته می‌شه، ولی همچنان **بدون هیچ کتابخانه خارجی** —
+تنها وابستگی، `kotlin-stdlib` است. (بدون Jetpack Compose، بدون AndroidX، بدون Retrofit.)
 
 ### پیش‌نیازها
-- Termux با پکیج‌های: `aapt2`، `d8`، `apksigner` (build-tools اندروید)، `zip`
-- `android.jar` (API 34) در مسیر `~/android/android-34/android.jar`
-- کامپایلر Kotlin در `~/opt/kotlinc`
+- **JDK 17**
+- **Android SDK** با `compileSdk 36` و `build-tools 35.0.0`
+- (اختیاری) متغیر محیطی `ANDROID_HOME` یا فایل `local.properties` با مسیر SDK
 
 ### بیلد
 
 ```bash
-cd YosraApp
-./build.sh
+./gradlew assembleDebug      # خروجی دیباگ
+./gradlew assembleRelease    # خروجی ریلیز + کپی در پوشه dist/
 ```
 
-خروجی: `YosraApp/Yosra-v<version>.apk`
+خروجی‌ها:
+| مسیر | توضیح |
+|---|---|
+| `app/build/outputs/apk/debug/app-debug.apk` | نسخه دیباگ |
+| `app/build/outputs/apk/release/app-release.apk` | نسخه ریلیز |
+| `dist/Yosra-v<version>-<code>.apk` | کپی با نام خوانا |
+
+### نصب روی گوشی
+
+```bash
+adb install -r dist/Yosra-v1.0.0-43.apk
+```
 
 ### انتشار نسخه جدید
 
-قبل از بیلد، نسخه رو آپدیت کن:
-1. `build.sh` → `--version-code` و `--version-name`
-2. `res/layout/activity_settings.xml` → متن «نسخه ۲.x.x»
+1. `app/build.gradle.kts` → `versionCode` و `versionName`
+2. `app/src/main/res/layout/activity_settings.xml` → متن «نسخه ۲.x.x»
+3. `./gradlew assembleRelease`
+
+> هر دو نوع بیلد با کلید `app/debug.keystore` امضا می‌شوند تا نصب روی نسخه قبلی بدون
+> خطای `INSTALL_FAILED_UPDATE_INCOMPATIBLE` انجام شود.
 
 ---
 
@@ -96,39 +111,35 @@ cd YosraApp
 
 ```
 Yosra/
-├── README.md
-└── YosraApp/
-    ├── build.sh              # اسکریپت بیلد (aapt2 → kotlinc → d8 → apksigner)
-    ├── AndroidManifest.xml
-    ├── assets/               # فونت وزیرمتن
-    ├── src/                  # کد Kotlin (بدون وابستگی خارجی)
-    │   ├── HomeActivity.kt         # صفحه اصلی
-    │   ├── TransactionsActivity.kt # لیست تراکنش‌ها
-    │   ├── AddTransactionActivity.kt # ثبت/ویرایش با تقویم شمسی
-    │   ├── InstallmentsActivity.kt # لیست بدهی‌ها
-    │   ├── DebtDetailActivity.kt   # جزئیات قسط‌ها
-    │   ├── ReportsActivity.kt      # گزارش‌ها
-    │   ├── SettingsActivity.kt     # تنظیمات، کاربران، دسته‌ها، بکاپ
-    │   ├── Db.kt                   # SQLite (نسخه ۱۱)
-    │   ├── BarChartView.kt         # نمودار میله‌ای سفارشی
-    │   ├── DonutChartView.kt       # چارت دایره‌ای سفارشی
-    │   └── U.kt                    # ابزارها (تومان، شمسی، فونت)
-    └── res/
-        ├── layout/           # لای‌اوت‌ها (RTL)
-        ├── drawable/         # شکل‌ها، چیپ‌ها، دکمه‌ها
-        └── values/           # رنگ‌ها، استایل‌ها
+├── settings.gradle.kts           # تعریف ماژول‌ها و مخازن
+├── build.gradle.kts              # کانفیگ ریشه
+├── gradle/libs.versions.toml     # version catalog (AGP 8.11.0 / Kotlin 1.9.22)
+├── gradlew                       # Gradle wrapper 8.14.3
+└── app/
+    ├── build.gradle.kts
+    ├── debug.keystore            # کلید امضا
+    └── src/main/
+        ├── AndroidManifest.xml
+        ├── assets/               # فونت وزیرمتن
+        ├── java/
+        │   ├── App.kt                   # Application
+        │   ├── SplashActivity.kt        # صفحه شروع
+        │   ├── LoginActivity.kt
+        │   ├── HomeActivity.kt          # صفحه اصلی
+        │   ├── TransactionsActivity.kt  # لیست تراکنش‌ها
+        │   ├── AddTransactionActivity.kt # ثبت/ویرایش با تقویم شمسی
+        │   ├── InstallmentsActivity.kt  # لیست بدهی‌ها
+        │   ├── DebtDetailActivity.kt    # جزئیات قسط‌ها
+        │   ├── ReportsActivity.kt       # گزارش‌ها
+        │   ├── SettingsActivity.kt      # تنظیمات، کاربران، دسته‌ها، بکاپ
+        │   ├── Db.kt                    # SQLite (نسخه ۱۱)
+        │   ├── Sync.kt / Rt.kt / Ptr.kt  # سینک دوطرفه با داشبورد وب
+        │   ├── BarChartView.kt          # نمودار میله‌ای سفارشی
+        │   ├── DonutChartView.kt        # چارت دایره‌ای سفارشی
+        │   └── U.kt                     # ابزارها (تومان، شمسی، فونت)
+        └── res/
+            ├── layout/           # لای‌اوت‌ها (RTL)
+            ├── drawable/         # شکل‌ها، چیپ‌ها، دکمه‌ها
+            ├── values/           # رنگ‌ها، استایل‌ها
+            └── values-night/     # تم تاریک
 ```
-
----
-
-## 📦 بکاپ
-
-از **تنظیمات → بکاپ** می‌تونی کل دیتابیس رو به‌صورت فایل ذخیره کنی و بعداً با **بازیابی** برگردونی.
-
----
-
-<div dir="ltr">
-
-© Yosra — تمامی حقوق محفوظ است.
-
-</div>

@@ -1,5 +1,0 @@
-build/
-*.apk
-*.idsig
-.adb_port
-*.log
